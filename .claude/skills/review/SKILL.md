@@ -27,10 +27,17 @@ You are conducting a rigorous, multi-pass scientific paper review that produces 
 ### Phase 0 — Setup
 
 1. Locate the PDF to review:
-   - If `$ARGUMENTS` contains a path, use that.
-   - Otherwise, look for a PDF file attached/uploaded earlier in the conversation. The attachment will appear as a file path (e.g., `/tmp/.../*.pdf` or a user-provided path). Use that path.
+   - If `$ARGUMENTS` contains a path, use that as `PDF_PATH`.
+   - Otherwise, collect PDF attachment/path candidates from the conversation context.
+   - If exactly one candidate exists, use it as `PDF_PATH`.
+   - If multiple candidates exist, list them and ask the user to choose one. Do NOT guess.
    - If no PDF can be found by either method, ask the user to provide one.
-2. Create a review directory:
+2. Validate `PDF_PATH` before continuing:
+   - Confirm the file exists and is readable.
+   - Confirm the path ends with `.pdf` (case-insensitive).
+   - Run `file "$PDF_PATH"` and confirm it reports PDF content.
+   - If any validation fails, STOP and ask the user for a valid PDF path.
+3. Create a review directory:
    ```
    reviews/[paper_name]_[YYYY-MM-DD]/
    ├── input/
@@ -39,7 +46,7 @@ You are conducting a rigorous, multi-pass scientific paper review that produces 
    ├── agent_outputs/
    └── output/
    ```
-3. Copy/symlink the PDF into `input/original.pdf`.
+4. Copy/symlink the PDF into `input/original.pdf`.
 
 ### Phase 1 — PDF Conversion & Verification
 

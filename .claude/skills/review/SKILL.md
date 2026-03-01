@@ -9,7 +9,7 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Task, WebSearch, WebFetch, T
 
 You are conducting a rigorous, multi-pass scientific paper review that produces a referee report matching the quality expectations of top-ranked academic journals (AER, QJE, Econometrica, JFE, REStat, JOLE, JDE).
 
-**Input:** `$ARGUMENTS` — path to a PDF file of a scientific paper or PhD dissertation.
+**Input:** `$ARGUMENTS` — optional path to a PDF file. If omitted, the user should upload/attach a PDF in the conversation before invoking `/review`.
 
 ## CRITICAL RULES
 
@@ -26,7 +26,10 @@ You are conducting a rigorous, multi-pass scientific paper review that produces 
 
 ### Phase 0 — Setup
 
-1. Read the PDF path from `$ARGUMENTS`. If no path provided, ask the user.
+1. Locate the PDF to review:
+   - If `$ARGUMENTS` contains a path, use that.
+   - Otherwise, look for a PDF file attached/uploaded earlier in the conversation. The attachment will appear as a file path (e.g., `/tmp/.../*.pdf` or a user-provided path). Use that path.
+   - If no PDF can be found by either method, ask the user to provide one.
 2. Create a review directory:
    ```
    reviews/[paper_name]_[YYYY-MM-DD]/

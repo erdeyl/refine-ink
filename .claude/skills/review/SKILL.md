@@ -54,17 +54,63 @@ You are conducting a rigorous, multi-pass scientific paper review that produces 
 
 ### Phase 2 — Chunking
 
-Read the converted markdown and identify chunk boundaries:
+Launch the **paper-parser** agent to create analysis-ready chunks from the converted markdown:
+
+1. Provide:
+   - Path to the converted markdown file
+   - Target chunk sizes by dimension (as defined in `docs/CHUNKING.md`)
+2. Instruct it to output `chunks/chunk_map.json` with:
+   ```json
+   {
+     "total_chunks": 18,
+     "chunks": [
+       {"id": "c1", "heading": "Abstract", "start_line": 1, "end_line": 15, "words": 250, "has_equations": false, "has_tables": false, "has_figures": false, "is_references": false, "is_abstract": true}
+     ],
+     "dimension_assignments": {
+       "math-logic": ["c3", "c5"],
+       "notation": [["c1", "c2", "c3"]],
+       "exposition": [["c1", "c2", "c3"]],
+       "empirical": ["c4"],
+       "cross-section": [["c1", "c7"]],
+       "econometrics": ["c3", "c4"],
+       "literature": ["c2"],
+       "references": ["c10"],
+       "language": [["c1", "c2", "c3"]]
+     }
+   }
+   ```
+3. Instruct it to include chunk metadata fields: `has_equations`, `has_tables`, `has_figures`, `is_references`, `is_abstract`
+4. Validate the generated chunk map for obvious boundary errors before continuing
+
+Report: "Phase 2: paper-parser complete. Chunk map generated."
+
+If paper-parser is unavailable, use this manual fallback:
 
 1. **Primary split**: by markdown headings (`##`, `###`)
 2. **Secondary split**: if any section exceeds the dimension-specific target size, split at paragraph breaks
 3. Create `chunks/chunk_map.json` with:
    ```json
-   [{"id": "c1", "heading": "1. Introduction", "start_line": 1, "end_line": 45, "words": 1200}]
+   {
+     "total_chunks": 18,
+     "chunks": [
+       {"id": "c1", "heading": "1. Introduction", "start_line": 1, "end_line": 45, "words": 1200, "has_equations": false, "has_tables": false, "has_figures": false, "is_references": false, "is_abstract": false}
+     ],
+     "dimension_assignments": {
+       "math-logic": ["c1"],
+       "notation": [["c1"]],
+       "exposition": [["c1"]],
+       "empirical": [],
+       "cross-section": [],
+       "econometrics": ["c1"],
+       "literature": [],
+       "references": [],
+       "language": [["c1"]]
+     }
+   }
    ```
 4. Note which chunks contain: equations, tables, figures, references
 
-### Phase 3 — Parallel Analysis (launch ALL agents simultaneously)
+### Phase 3 — Parallel Analysis (launch core analysis agents simultaneously)
 
 Launch Task agents in parallel. For each agent, provide:
 - The path to the converted markdown file
@@ -104,13 +150,17 @@ If the paper exceeds ~60,000 words, process chapter-by-chapter. For each chapter
 After Phase 3 agents complete:
 
 1. Extract key terms, main research question, and field from the paper
-2. Use WebSearch to find potentially missing key references in the field
-3. If Chrome browser is available (Claude in Chrome MCP), search Google Scholar:
+2. Launch the **literature** agent with:
+   - The converted markdown
+   - The references list (`reviews/[name]/input/*_references.json`)
+   - Key terms and field notes from step 1
+3. Instruct it to use WebSearch (and API-based checks) to find potentially missing key references in the field
+4. If Chrome browser is available (Claude in Chrome MCP), run an additional orchestrator-level Google Scholar pass:
    - Open Google Scholar in a tab
    - Search for 3-5 key term combinations
    - Wait 3-8 seconds (random) between searches
-   - Extract top results and compare with paper's bibliography
-4. Save findings to `agent_outputs/literature.md`
+   - Compare top results with the paper bibliography and literature-agent findings
+5. Save findings to `agent_outputs/literature.md`
 
 Report: "Phase 4: Literature search complete. [N] potentially missing references identified."
 

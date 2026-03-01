@@ -1,0 +1,10 @@
+reviews/
+__pycache__/
+*.pyc
+.env
+.venv/
+.claude/settings.local.json
+*.egg-info/
+dist/
+build/
+.DS_Store

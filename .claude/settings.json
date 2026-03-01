@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/python scripts/*)",
+      "Bash(python scripts/*)",
+      "Bash(pip install*)",
+      "Bash(.venv/bin/pip install*)",
+      "Bash(mkdir*)",
+      "Bash(cp*)",
+      "Bash(ln*)",
+      "Bash(ls*)",
+      "Bash(source .venv/bin/activate*)",
+      "Read",
+      "Write(reviews/**)",
+      "Write(output/**)",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "WebFetch",
+      "Task"
+    ],
+    "deny": [
+      "Bash(rm -rf*)",
+      "Bash(git push*)"
+    ]
+  }
+}

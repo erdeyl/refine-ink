@@ -54,7 +54,21 @@ You are conducting a rigorous, multi-pass scientific paper review that produces 
 
 ### Phase 2 — Chunking
 
-Read the converted markdown and identify chunk boundaries:
+Launch the **paper-parser** agent to create analysis-ready chunks from the converted markdown:
+
+1. Provide:
+   - Path to the converted markdown file
+   - Target chunk sizes by dimension (as defined in `docs/CHUNKING.md`)
+2. Instruct it to output `chunks/chunk_map.json` with:
+   ```json
+   [{"id": "c1", "heading": "1. Introduction", "start_line": 1, "end_line": 45, "words": 1200}]
+   ```
+3. Instruct it to label chunk metadata: equations, tables, figures, references, abstract
+4. Validate the generated chunk map for obvious boundary errors before continuing
+
+Report: "Phase 2: paper-parser complete. Chunk map generated."
+
+If paper-parser is unavailable, use this manual fallback:
 
 1. **Primary split**: by markdown headings (`##`, `###`)
 2. **Secondary split**: if any section exceeds the dimension-specific target size, split at paragraph breaks
@@ -64,7 +78,7 @@ Read the converted markdown and identify chunk boundaries:
    ```
 4. Note which chunks contain: equations, tables, figures, references
 
-### Phase 3 — Parallel Analysis (launch ALL agents simultaneously)
+### Phase 3 — Parallel Analysis (launch core analysis agents simultaneously)
 
 Launch Task agents in parallel. For each agent, provide:
 - The path to the converted markdown file
@@ -104,13 +118,17 @@ If the paper exceeds ~60,000 words, process chapter-by-chapter. For each chapter
 After Phase 3 agents complete:
 
 1. Extract key terms, main research question, and field from the paper
-2. Use WebSearch to find potentially missing key references in the field
-3. If Chrome browser is available (Claude in Chrome MCP), search Google Scholar:
+2. Launch the **literature** agent with:
+   - The converted markdown
+   - The references list (`*_references.json`)
+   - Key terms and field notes from step 1
+3. Instruct it to use WebSearch to find potentially missing key references in the field
+4. If Chrome browser is available (Claude in Chrome MCP), have it search Google Scholar:
    - Open Google Scholar in a tab
    - Search for 3-5 key term combinations
    - Wait 3-8 seconds (random) between searches
    - Extract top results and compare with paper's bibliography
-4. Save findings to `agent_outputs/literature.md`
+5. Save findings to `agent_outputs/literature.md`
 
 Report: "Phase 4: Literature search complete. [N] potentially missing references identified."
 

@@ -8,7 +8,7 @@ To review a paper: `/review path/to/paper.pdf`
 
 ## How It Works
 
-The system uses parallelized multi-pass analysis with 11 specialized agents, each analyzing a different dimension of the paper. All analysis is grounded in the document text to prevent hallucination.
+The system uses parallelized multi-pass analysis with 12 specialized agents, each analyzing a different dimension of the paper. All analysis is grounded in the document text to prevent hallucination.
 
 ## Key Principles
 
@@ -26,6 +26,7 @@ The system uses parallelized multi-pass analysis with 11 specialized agents, eac
 
 | Agent | Purpose | Model |
 |-------|---------|-------|
+| paper-parser | Parses converted markdown into analysis-ready chunks | Haiku |
 | math-logic | Equations, proofs, derivations | Sonnet |
 | notation | Symbol/variable consistency | Sonnet |
 | exposition | Argument flow, clarity | Sonnet |

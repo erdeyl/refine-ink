@@ -66,6 +66,31 @@ def is_valid_doi(doi: str) -> bool:
     return bool(doi and DOI_REGEX.match(doi.strip()))
 
 
+def extract_year(value: object) -> Optional[str]:
+    """Extract a 4-digit year from API values."""
+    if value is None:
+        return None
+    if isinstance(value, int):
+        if 1800 <= value <= 2100:
+            return str(value)
+        return None
+    if isinstance(value, str):
+        m = re.search(r"\b(18|19|20)\d{2}\b", value)
+        return m.group(0) if m else None
+    return None
+
+
+def extract_crossref_year(record: dict) -> Optional[str]:
+    """Extract publication year from a CrossRef work/item."""
+    for key in ("issued", "published-print", "published-online", "created"):
+        parts = record.get(key, {}).get("date-parts", [])
+        if parts and isinstance(parts[0], list) and parts[0]:
+            year = extract_year(parts[0][0])
+            if year:
+                return year
+    return None
+
+
 @dataclass
 class MatchResult:
     """Result from a single API lookup."""
@@ -171,6 +196,9 @@ async def crossref_lookup(
                 result.source = "crossref"
                 result.title = matched_title
                 result.doi = work.get("DOI", doi)
+                year = extract_crossref_year(work)
+                if year:
+                    result.extra["year"] = year
                 ref_title = ref.get("title", "")
                 if ref_title and matched_title:
                     result.similarity = title_similarity(ref_title, matched_title)
@@ -227,6 +255,9 @@ async def crossref_lookup(
         result.title = best_item.get("title", [""])[0]
         result.doi = best_item.get("DOI")
         result.similarity = best_sim
+        year = extract_crossref_year(best_item)
+        if year:
+            result.extra["year"] = year
 
     return result
 
@@ -261,6 +292,9 @@ async def openalex_lookup(
                 result.source = "openalex"
                 result.title = matched_title
                 result.doi = doi
+                year = extract_year(data.get("publication_year"))
+                if year:
+                    result.extra["year"] = year
                 ref_title = ref.get("title", "")
                 if ref_title and matched_title:
                     result.similarity = title_similarity(ref_title, matched_title)
@@ -311,6 +345,9 @@ async def openalex_lookup(
         if result.doi and result.doi.startswith("https://doi.org/"):
             result.doi = result.doi.replace("https://doi.org/", "")
         result.similarity = best_sim
+        year = extract_year(best_item.get("publication_year"))
+        if year:
+            result.extra["year"] = year
 
     return result
 
@@ -339,7 +376,7 @@ async def s2_lookup(
     doi = (ref.get("doi") or "").strip()
     if is_valid_doi(doi):
         url = f"{S2_BASE}/DOI:{doi}"
-        params = {"fields": "title,externalIds"}
+        params = {"fields": "title,year,externalIds"}
         resp = await request_with_backoff(
             client, "GET", url, limiter, params=params, headers=headers or None
         )
@@ -352,6 +389,9 @@ async def s2_lookup(
                 result.title = matched_title
                 ext_ids = data.get("externalIds", {})
                 result.doi = ext_ids.get("DOI", doi)
+                year = extract_year(data.get("year"))
+                if year:
+                    result.extra["year"] = year
                 if ref_title and matched_title:
                     result.similarity = title_similarity(ref_title, matched_title)
                 else:
@@ -365,7 +405,7 @@ async def s2_lookup(
         return result
 
     url = f"{S2_BASE}/search"
-    params = {"query": ref_title, "limit": 5, "fields": "title,externalIds"}
+    params = {"query": ref_title, "limit": 5, "fields": "title,year,externalIds"}
     resp = await request_with_backoff(
         client, "GET", url, limiter, params=params, headers=headers or None
     )
@@ -399,6 +439,9 @@ async def s2_lookup(
         ext_ids = best_item.get("externalIds", {})
         result.doi = ext_ids.get("DOI")
         result.similarity = best_sim
+        year = extract_year(best_item.get("year"))
+        if year:
+            result.extra["year"] = year
 
     return result
 
@@ -494,14 +537,30 @@ def _build_output(idx: int, ref: dict, match: MatchResult, raw_text: str) -> dic
     """Construct the output dict from a MatchResult."""
     doi = (ref.get("doi") or "").strip()
     ref_title = ref.get("title", "")
+    exact_doi_match = bool(doi and match.doi and normalize(doi) == normalize(match.doi))
 
     # Determine confidence and status
     if match.found:
-        # Exact DOI match
-        if doi and match.doi and normalize(doi) == normalize(match.doi):
-            confidence = 100
-            status = "verified"
-            details = "Exact DOI match confirmed"
+        # Exact DOI match is strong evidence, but large metadata mismatch still needs review.
+        if exact_doi_match:
+            if ref_title and match.title and match.similarity < TITLE_MATCH_REVIEW:
+                confidence = 60
+                status = "suspicious"
+                details = (
+                    f"DOI resolves exactly, but title similarity is only {match.similarity:.0%} "
+                    "(possible extraction/metadata mismatch)"
+                )
+            elif ref_title and match.title and match.similarity < TITLE_MATCH_VERIFIED:
+                confidence = 75
+                status = "suspicious"
+                details = (
+                    f"DOI resolves exactly, but title similarity is {match.similarity:.0%} "
+                    "(below verification threshold)"
+                )
+            else:
+                confidence = 100
+                status = "verified"
+                details = "Exact DOI match confirmed"
         elif match.similarity >= TITLE_MATCH_VERIFIED:
             confidence = 90
             status = "verified"
@@ -523,8 +582,14 @@ def _build_output(idx: int, ref: dict, match: MatchResult, raw_text: str) -> dic
         details = "Not found in CrossRef, OpenAlex, or Semantic Scholar"
 
     suspicion_reasons = detect_suspicion(ref, match)
-    if suspicion_reasons and status != "suspicious":
+    if suspicion_reasons and status == "verified":
         status = "suspicious"
+        confidence = min(confidence, 80)
+        details = f"{details}; metadata inconsistencies require review"
+    elif suspicion_reasons and status == "unverifiable":
+        status = "suspicious"
+        confidence = max(confidence, 40)
+        details = f"{details}; heuristic signals indicate potential fabrication"
 
     out = {
         "ref_index": idx,
@@ -581,19 +646,20 @@ async def verify_all(
     results: list[Optional[dict]] = [None] * len(references)
     total = len(references)
 
-    async def _worker(idx: int, ref: dict):
-        async with sem:
-            print(f"Verifying reference {idx + 1}/{total}...", flush=True)
-            async with httpx.AsyncClient(
-                follow_redirects=True,
-                headers={"User-Agent": "VerifyReferences/1.0 (academic-tool)"},
-            ) as client:
+    async with httpx.AsyncClient(
+        follow_redirects=True,
+        headers={"User-Agent": "VerifyReferences/1.0 (academic-tool)"},
+    ) as client:
+
+        async def _worker(idx: int, ref: dict):
+            async with sem:
+                print(f"Verifying reference {idx + 1}/{total}...", flush=True)
                 results[idx] = await verify_one(
                     idx, ref, client, cr_limiter, oa_limiter, s2_limiter, mailto, s2_api_key
                 )
 
-    tasks = [asyncio.create_task(_worker(i, ref)) for i, ref in enumerate(references)]
-    await asyncio.gather(*tasks)
+        tasks = [asyncio.create_task(_worker(i, ref)) for i, ref in enumerate(references)]
+        await asyncio.gather(*tasks)
 
     return [r for r in results if r is not None]
 

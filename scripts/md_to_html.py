@@ -7,6 +7,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import bleach
 import markdown
 from jinja2 import Template
 
@@ -49,13 +50,78 @@ def enhance_html(html: str) -> str:
             f"<td>{label}</td>",
             f'<td class="{css_class}">{label}</td>',
         )
-    # Wrap "Suggested correction:" blocks
+    # Wrap "Suggested correction/rewrite:" paragraphs in a highlighted box.
+    def _wrap_suggested(match: re.Match[str]) -> str:
+        text = match.group(1).strip()
+        label_match = re.match(r"Suggested (?:correction|rewrite):", text, flags=re.IGNORECASE)
+        if not label_match:
+            return match.group(0)
+        label = label_match.group(0)
+        body = text[label_match.end() :].strip()
+        return (
+            '<div class="correction">'
+            f'<span class="correction-label">{label}</span><br/>{body}'
+            "</div>"
+        )
+
     html = re.sub(
-        r'(<p>)(Suggested (?:correction|rewrite):)',
-        r'\1<div class="correction"><span class="correction-label">Suggested correction:</span><br/>',
+        r"<p>(Suggested (?:correction|rewrite):.*?)</p>",
+        _wrap_suggested,
         html,
+        flags=re.IGNORECASE | re.DOTALL,
     )
     return html
+
+
+def sanitize_html(html: str) -> str:
+    """Sanitize generated HTML to prevent script/style injection."""
+    allowed_tags = [
+        "a",
+        "blockquote",
+        "br",
+        "code",
+        "div",
+        "em",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "hr",
+        "img",
+        "li",
+        "ol",
+        "p",
+        "pre",
+        "span",
+        "strong",
+        "sub",
+        "sup",
+        "table",
+        "tbody",
+        "td",
+        "th",
+        "thead",
+        "tr",
+        "ul",
+    ]
+    allowed_attributes = {
+        "*": ["id", "class"],
+        "a": ["href", "title", "name"],
+        "img": ["src", "alt", "title"],
+        "td": ["class"],
+        "div": ["class"],
+        "span": ["class"],
+    }
+    allowed_protocols = ["http", "https", "mailto"]
+    return bleach.clean(
+        html,
+        tags=allowed_tags,
+        attributes=allowed_attributes,
+        protocols=allowed_protocols,
+        strip=True,
+    )
 
 
 def convert(md_path: str, output_path: str | None = None) -> str:
@@ -73,6 +139,7 @@ def convert(md_path: str, output_path: str | None = None) -> str:
     ]
     html_content = markdown.markdown(md_text, extensions=extensions)
     html_content = enhance_html(html_content)
+    html_content = sanitize_html(html_content)
 
     template_path = Path(__file__).parent / "review_template.html"
     template = Template(template_path.read_text(encoding="utf-8"))

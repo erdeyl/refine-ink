@@ -25,7 +25,10 @@ import re
 import sys
 from pathlib import Path
 
-import fitz  # pymupdf
+try:
+    import fitz  # pymupdf
+except ImportError:
+    fitz = None
 
 
 # ---------------------------------------------------------------------------
@@ -236,8 +239,8 @@ def pdf_footnotes_from_blocks(blocks: list[dict], body_size: float) -> int:
 # ---------------------------------------------------------------------------
 
 def md_headings(md_text: str) -> list[str]:
-    """Extract ## and ### headings from Markdown."""
-    return re.findall(r"^#{2,3}\s+(.+)$", md_text, re.MULTILINE)
+    """Extract top-level to subsection headings from Markdown."""
+    return re.findall(r"^#{1,3}\s+(.+)$", md_text, re.MULTILINE)
 
 
 def md_tables(md_text: str) -> int:
@@ -435,6 +438,9 @@ def last_paragraph_before_references(text: str) -> str:
 
 def verify(pdf_path: str, md_path: str) -> dict:
     """Run all checks and return the JSON-serialisable report dict."""
+    if fitz is None:
+        raise RuntimeError("pymupdf is required. Install with: pip install pymupdf")
+
     warnings: list[str] = []
     failures: list[str] = []
 
@@ -598,6 +604,13 @@ def main() -> None:
     parser.add_argument("pdf", help="Path to the original PDF file")
     parser.add_argument("md", help="Path to the converted Markdown file")
     args = parser.parse_args()
+
+    if fitz is None:
+        print(
+            "Error: missing dependency 'pymupdf' (fitz). Install with: pip install pymupdf",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
     pdf_path = os.path.abspath(args.pdf)
     md_path = os.path.abspath(args.md)

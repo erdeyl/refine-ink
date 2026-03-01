@@ -12,7 +12,7 @@
 
 ## Features
 
-- **Multi-pass parallelised analysis** -- 11 specialised agents review a paper simultaneously across orthogonal quality dimensions
+- **Multi-pass parallelised analysis** -- 12 specialised agents review a paper simultaneously across orthogonal quality dimensions
 - **Reference validation** -- three-tier cascade using CrossRef, OpenAlex, and Semantic Scholar APIs with fuzzy title matching
 - **Hallucination detection** -- identifies fabricated citations, nonexistent journals, and impossible DOIs
 - **Confidence scoring with iteration** -- every finding is rated 0--100%; low-confidence findings are re-analysed by a dedicated Opus-class agent
@@ -46,7 +46,7 @@ The `/review` command launches the full multi-agent pipeline. A typical journal 
 
 ## Architecture Overview
 
-refine-ink uses Claude Code's agent system to orchestrate 11 specialised review agents that run in parallel. Each agent analyses a different quality dimension of the paper, and their findings are then iteratively validated before synthesis into a coherent referee report.
+refine-ink uses Claude Code's agent system to orchestrate 12 specialised review agents that run in parallel. Each agent analyses a different quality dimension of the paper, and their findings are then iteratively validated before synthesis into a coherent referee report.
 
 ### Agent Table
 
@@ -216,7 +216,7 @@ Detailed documentation is available in the [`docs/`](docs/) directory:
 - [**USAGE.md**](docs/USAGE.md) -- How to use the system and interpret output
 - [**AUDIT.md**](docs/AUDIT.md) -- Audit trail format and verification procedures
 - [**CHUNKING.md**](docs/CHUNKING.md) -- Chunking strategy rationale and dimension-specific sizes
-- [**AGENTS.md**](docs/AGENTS.md) -- Detailed documentation of all 11 agents
+- [**AGENTS.md**](docs/AGENTS.md) -- Detailed documentation of all 12 agents
 
 ---
 

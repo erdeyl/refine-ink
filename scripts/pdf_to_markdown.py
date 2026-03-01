@@ -75,20 +75,24 @@ _YEAR_RE = re.compile(r"\b((?:19|20)\d{2})\b")
 # Numbered reference: starts with [1], 1., (1), etc.
 _NUMBERED_RE = re.compile(r"^\s*(?:\[(\d+)\]|(\d+)\.\s|\((\d+)\))\s*")
 
+# Author-year style start for non-numbered bibliographies.
+_AUTHOR_YEAR_START_RE = re.compile(
+    r"^[A-ZÀ-ÖØ-ÝŐŰ][A-Za-zÀ-ÖØ-öø-ÿŐőŰű'’\-]+(?:\s+[A-ZÀ-ÖØ-ÝŐŰ][A-Za-zÀ-ÖØ-öø-ÿŐőŰű'’\-]+){0,2},"
+)
+
 
 def _find_references_section(md_text: str) -> Optional[str]:
     """Return the raw text of the references section, or None."""
-    best_start: Optional[int] = None
-
+    matches: list[re.Match[str]] = []
     for pattern in _REF_HEADING_PATTERNS:
-        m = pattern.search(md_text)
-        if m:
-            # Use the latest match (references are usually near the end)
-            if best_start is None or m.start() > best_start:
-                best_start = m.end()
+        matches.extend(pattern.finditer(md_text))
 
-    if best_start is None:
+    if not matches:
         return None
+
+    # References are typically near the end; use the latest heading match.
+    best_match = max(matches, key=lambda m: m.start())
+    best_start = best_match.end()
 
     # Find where the next major section starts after references
     remainder = md_text[best_start:]
@@ -97,6 +101,30 @@ def _find_references_section(md_text: str) -> Optional[str]:
         remainder = remainder[: end_match.start()]
 
     return remainder.strip()
+
+
+def _looks_like_new_reference_line(stripped: str, raw_line: str) -> bool:
+    """Heuristic for non-numbered references that start on a new line."""
+    if _NUMBERED_RE.match(stripped):
+        return True
+
+    # Indented lines are usually continuations of the previous entry.
+    if raw_line.startswith((" ", "\t")):
+        return False
+
+    # Require an early year marker to avoid splitting on title-case continuation lines.
+    has_year_early = bool(
+        re.search(r"\((?:19|20)\d{2}[a-z]?\)", stripped[:120])
+        or re.search(r"\b(?:19|20)\d{2}[a-z]?\b", stripped[:120])
+    )
+    if not has_year_early:
+        return False
+
+    if _AUTHOR_YEAR_START_RE.match(stripped):
+        return True
+
+    # Fallback for styles like "Surname et al. (2020) ..."
+    return bool(re.match(r"^[A-ZÀ-ÖØ-ÝŐŰ][^.!?]{0,100}\((?:19|20)\d{2}[a-z]?\)", stripped))
 
 
 def _split_references(ref_block: str) -> list[str]:
@@ -114,11 +142,10 @@ def _split_references(ref_block: str) -> list[str]:
                 current = []
             continue
 
-        # If the line starts with a number marker, treat it as a new entry
-        if _NUMBERED_RE.match(stripped):
-            if current:
-                entries.append(" ".join(current))
-                current = []
+        # Split on explicit numbered markers and author-year new-entry cues.
+        if current and _looks_like_new_reference_line(stripped, line):
+            entries.append(" ".join(current))
+            current = []
 
         current.append(stripped)
 

@@ -15,9 +15,12 @@ You are conducting a rigorous, multi-pass scientific paper review that produces 
 
 1. **Never hallucinate.** Every claim in your review must be traceable to the paper's text or to a verified external source. Read `.claude/rules/no-hallucination.md`.
 2. **Verbatim corrections.** Every error you identify must include a specific correction recommendation. Read `.claude/rules/review-standards.md`.
-3. **Human-like prose.** Write as a senior colleague reviewing for a top journal — NOT as an AI producing bullet points.
-4. **Confidence scores.** Every finding gets a 0-100% confidence score.
-5. **Progress updates.** Report progress after each phase.
+3. **Assertion-style titles.** Every finding title must state a conclusion, not a vague label. Read `.claude/rules/review-standards.md`.
+4. **Design before results.** Evaluate research design validity BEFORE examining results. Read `.claude/rules/review-standards.md`.
+5. **Human-like prose.** Write as a senior colleague reviewing for a top journal — NOT as an AI producing bullet points.
+6. **Confidence scores.** Every finding gets a 0-100% confidence score.
+7. **Progress updates.** Report progress after each phase.
+8. **Never modify the original paper.** The original PDF and converted markdown in `input/` are read-only. All output goes to `agent_outputs/` and `output/`.
 
 ## WORKFLOW
 
@@ -69,6 +72,11 @@ Launch Task agents in parallel. For each agent, provide:
 - The specific line ranges to analyze
 - The abstract + introduction text (for context)
 - Instructions to save findings to `agent_outputs/[agent_name].md`
+- Reminder to use **assertion-style finding titles** (see `.claude/rules/review-standards.md`)
+- Reference to `.claude/rules/statistical-pitfalls.md` for awareness of common pitfalls
+
+**CRITICAL: Design-Before-Results Order for Econometrics Agent**
+The econometrics agent MUST evaluate the research DESIGN (methodology/identification strategy) BEFORE reading results. Tell it explicitly: "Assess the methodology section first. Form your design assessment. Then read results." This prevents anchoring bias — a sound design should not be questioned just because results are surprising, and a flawed design should not be accepted just because results look plausible.
 
 **Launch these agents in parallel:**
 
@@ -77,12 +85,19 @@ Launch Task agents in parallel. For each agent, provide:
 3. **exposition** — Give it ALL chunks in groups of 3-4 (chunk size: 1500-2500 words)
 4. **empirical** — Give it chunks with tables/figures + surrounding text (chunk size: 1000-1500 words)
 5. **cross-section** — Give it PAIRS of related chunks: intro↔results, methods↔results, abstract↔conclusion (chunk size: 2000-3000 words per pair)
-6. **econometrics** — Give it methodology + results chunks (chunk size: 1200-1800 words)
+6. **econometrics** — Give it methodology chunks FIRST, then results chunks. Instruct design-before-results evaluation. (chunk size: 1200-1800 words)
 7. **language** — Give it ALL chunks in groups of 3-4 (chunk size: 1500-2000 words)
 
 Report: "Phase 3: All 7 analysis agents launched. Waiting for results..."
 
 As agents complete, report: "Phase 3: [N]/7 dimensions complete."
+
+**For PhD dissertations with context constraints:**
+If the paper exceeds ~60,000 words, process chapter-by-chapter. For each chapter:
+1. Launch a full set of agents for that chapter
+2. Collect findings before moving to the next chapter
+3. After all chapters, launch a cross-chapter consistency check
+4. Report progress: "Phase 3: Chapter [N]/[M] complete."
 
 ### Phase 4 — Literature Search
 
@@ -196,3 +211,35 @@ Average precision: [N]%
 Time: [N] minutes
 Output: reviews/[name]/output/review_EN.md (and .html)
 ```
+
+---
+
+## Context Survival Protocol (for long reviews)
+
+PhD dissertations and long papers may approach context window limits. To survive context compaction:
+
+### Before Compaction (triggered by PreCompact hook)
+
+When you receive the compaction warning, immediately write a state file to `reviews/[name]/agent_outputs/context_state.md` containing:
+
+```markdown
+# Review State — [paper title]
+## Current Phase: [phase number and name]
+## Completed Agents: [list with status]
+## Pending Agents: [list]
+## Key Findings So Far: [summary of critical/major findings]
+## Current Working State: [what you were doing when compaction hit]
+## Next Steps: [what to do after resuming]
+## File Paths: [all relevant file paths for this review]
+```
+
+### After Resuming
+
+1. Read `reviews/[name]/agent_outputs/context_state.md`
+2. Read `reviews/[name]/chunks/chunk_map.json`
+3. Read any completed agent outputs in `reviews/[name]/agent_outputs/`
+4. Resume from the phase indicated in the state file
+
+### Read-Only Protection
+
+The files in `reviews/[name]/input/` (original PDF and converted markdown) are READ-ONLY. Never modify them. All outputs go to `agent_outputs/`, `verification/`, and `output/` directories.

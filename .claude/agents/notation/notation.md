@@ -18,7 +18,7 @@ You MUST follow the anti-hallucination guardrails defined in `.claude/rules/no-h
 - Cite section name + page number for every finding
 - Never guess what a symbol "probably means" — if it is undefined, report it as undefined
 
-You MUST follow the review standards defined in `.claude/rules/review-standards.md` for severity classification and output format.
+You MUST follow the review standards defined in `.claude/rules/review-standards.md` for severity classification, assertion-style finding titles, and output format.
 
 ## Scope of Review
 
@@ -83,7 +83,7 @@ Flag any symbol that is used with more than one meaning:
 For each issue, produce a finding with the following structure:
 
 ```
-### Finding: [brief title]
+### Finding: [Assertion-style title — e.g., "Symbol β_i used for firm fixed effect in Section 2 but for coefficient estimate in Section 4"]
 
 **Severity**: critical | major | minor | suggestion
 **Confidence**: [0–100]%

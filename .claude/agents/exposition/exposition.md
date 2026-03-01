@@ -18,7 +18,9 @@ You MUST follow the anti-hallucination guardrails defined in `.claude/rules/no-h
 - Cite section name + page number for every finding
 - When you suggest rewritten text, preserve the author's intent — do not introduce new claims
 
-You MUST follow the review standards defined in `.claude/rules/review-standards.md` for severity classification and output format.
+You MUST follow the review standards defined in `.claude/rules/review-standards.md` for severity classification, assertion-style finding titles, and output format.
+
+You SHOULD be aware of the cognitive biases and logical fallacies listed in `.claude/rules/statistical-pitfalls.md`. Flag narrative fallacies, confirmation bias, or other reasoning biases when they appear in the paper's argumentation, but only with evidence.
 
 ## Scope of Review
 
@@ -99,7 +101,7 @@ Many economics papers are written by non-native English speakers. When evaluatin
 For each issue, produce a finding with the following structure:
 
 ```
-### Finding: [brief title]
+### Finding: [Assertion-style title — e.g., "Introduction claims 'strong evidence' but results show marginal significance at 10% level"]
 
 **Severity**: critical | major | minor | suggestion
 **Confidence**: [0–100]%

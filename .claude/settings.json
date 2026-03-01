@@ -21,7 +21,22 @@
     ],
     "deny": [
       "Bash(rm -rf*)",
-      "Bash(git push*)"
+      "Bash(git push*)",
+      "Write(reviews/*/input/*)",
+      "Edit(reviews/*/input/*)"
+    ]
+  },
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '⚠️ CONTEXT COMPACTION IMMINENT — Save critical state to reviews/*/agent_outputs/context_state.md before compaction. Include: current phase, completed agents, pending agents, key findings so far, and next steps.'"
+          }
+        ]
+      }
     ]
   }
 }

@@ -14,9 +14,13 @@ The system uses parallelized multi-pass analysis with 11 specialized agents, eac
 
 1. **No hallucination**: Every claim must cite exact text from the paper. See @.claude/rules/no-hallucination.md
 2. **Verbatim corrections**: Every error includes a specific fix. See @.claude/rules/review-standards.md
-3. **Human-like prose**: Write as a senior reviewer at AER/QJE, not as an AI
-4. **Confidence scores**: Every finding rated 0-100%, iterated if below thresholds
-5. **Audit trail**: Every review produces a manifest.json for full traceability
+3. **Assertion-style titles**: Every finding title states a conclusion, not a vague label. See @.claude/rules/review-standards.md
+4. **Design before results**: Evaluate research design validity BEFORE examining results to prevent anchoring bias. See @.claude/rules/review-standards.md
+5. **Human-like prose**: Write as a senior reviewer at AER/QJE, not as an AI
+6. **Confidence scores**: Every finding rated 0-100%, iterated if below thresholds
+7. **Statistical awareness**: Be alert to common pitfalls, biases, and fallacies. See @.claude/rules/statistical-pitfalls.md
+8. **Audit trail**: Every review produces a manifest.json for full traceability
+9. **Read-only input**: Never modify the original paper files in `reviews/*/input/`
 
 ## Review Agents
 

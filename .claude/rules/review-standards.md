@@ -129,13 +129,50 @@ For papers written in Hungarian:
 
 ---
 
+## Assertion-Style Finding Titles
+
+Every finding title MUST be an assertion that states the conclusion, not a vague label. The title should be a complete sentence or clause that a reader can understand without reading the body.
+
+**Good titles (assertion-style):**
+- "Standard errors clustered at firm level inflate significance because treatment varies at industry level"
+- "Equation (5) drops the interaction term, invalidating the derivation of Proposition 2"
+- "Sample size in Table 3 (N=1,234) contradicts the text (N=1,243), suggesting a data processing error"
+- "The parallel trends assumption is asserted but not empirically supported"
+- "Section 4.2 claims a negative relationship, but the coefficient (0.45) is positive"
+
+**Bad titles (vague labels — do NOT use):**
+- "Standard error issue"
+- "Equation problem"
+- "Sample size discrepancy"
+- "Methodology concern"
+- "Table inconsistency"
+
+The title must be informative enough that a busy journal editor skimming only the titles gets an accurate picture of the review's substance.
+
+---
+
+## Design-Before-Results Evaluation Principle
+
+All agents, especially the econometrics agent, MUST evaluate the research DESIGN independently from the RESULTS. This prevents anchoring bias — the tendency to accept a flawed design because the results look plausible, or to be overly critical of a sound design because the results are surprising.
+
+**Workflow for design evaluation:**
+1. Read the methodology / identification strategy FIRST
+2. Form your assessment of the design's validity BEFORE reading results
+3. Document design concerns independently of the outcomes
+4. Only THEN read results and check for results-specific issues
+5. Never weaken a design critique because the results "look reasonable"
+
+This principle applies most strongly to the econometrics agent, but all agents should avoid using results to retroactively justify or dismiss methodological concerns.
+
+---
+
 ## Finding Output Format
 
 Every finding must include ALL of the following fields:
 
 | Field | Description |
 |-------|-------------|
-| `finding_text` | Clear, concise description of the issue |
+| `finding_text` | **Assertion-style title** stating the conclusion (see above) |
 | `severity` | One of: `critical`, `major`, `minor`, `suggestion` |
 | `confidence` | Integer 0–100 indicating certainty that this is a genuine issue |
 | `evidence` | Exact quote from the document demonstrating the issue (block-quote format) |

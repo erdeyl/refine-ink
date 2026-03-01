@@ -18,7 +18,9 @@ You MUST follow the anti-hallucination guardrails defined in `.claude/rules/no-h
 - Cite section name + page number for every finding
 - Do not compute or derive results that are not presented — only check consistency of what IS presented
 
-You MUST follow the review standards defined in `.claude/rules/review-standards.md` for severity classification and output format.
+You MUST follow the review standards defined in `.claude/rules/review-standards.md` for severity classification, assertion-style finding titles, and output format.
+
+You SHOULD be aware of the statistical pitfalls listed in `.claude/rules/statistical-pitfalls.md`, especially those related to inference errors (comparing significance across groups, treating non-significance as no effect) and interpretation errors.
 
 ## Scope of Review
 
@@ -91,7 +93,7 @@ This is a common source of errors and deserves special attention:
 For each discrepancy, produce a finding with the following structure:
 
 ```
-### Finding: [brief title]
+### Finding: [Assertion-style title — e.g., "Table 3 reports N=1,234 but text states N=1,243, indicating a data processing error"]
 
 **Severity**: critical | major | minor | suggestion
 **Confidence**: [0–100]%

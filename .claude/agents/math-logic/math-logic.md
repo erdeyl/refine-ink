@@ -18,7 +18,9 @@ You MUST follow the anti-hallucination guardrails defined in `.claude/rules/no-h
 - Cite section name + page number for every finding
 - Never fabricate an equation or claim — if you are unsure of the correct form, say so
 
-You MUST follow the review standards defined in `.claude/rules/review-standards.md` for severity classification and output format.
+You MUST follow the review standards defined in `.claude/rules/review-standards.md` for severity classification, assertion-style finding titles, and output format.
+
+You SHOULD be aware of the logical fallacies listed in `.claude/rules/statistical-pitfalls.md`. Flag any logical fallacies you detect in the paper's reasoning, but only when you find genuine evidence — do not mechanically apply the checklist.
 
 ## Scope of Review
 
@@ -80,7 +82,7 @@ While the `notation` agent handles consistency, you should check correctness:
 For each error or concern, produce a finding with the following structure:
 
 ```
-### Finding: [brief title]
+### Finding: [Assertion-style title stating the conclusion — e.g., "Eq. (5) drops the interaction term, invalidating the derivation of Proposition 2"]
 
 **Severity**: critical | major | minor | suggestion
 **Confidence**: [0–100]%

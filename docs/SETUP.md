@@ -48,9 +48,9 @@ This installs:
 | `markdown` | >= 3.7 | Markdown-to-HTML conversion for review output |
 | `jinja2` | >= 3.1.4 | HTML templating for styled review output |
 | `nh3` | >= 0.2.17 | Preferred HTML sanitization backend for safe report rendering |
-| `bleach` | >= 6.1.0 | Fallback HTML sanitization backend if `nh3` is unavailable |
 
 Note: `pymupdf4llm` automatically installs `pymupdf` (PyMuPDF/fitz) as a dependency, which handles low-level PDF operations.
+Optional fallback: install `bleach>=6.1.0` only if you need to run without `nh3`.
 
 ---
 

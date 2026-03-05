@@ -614,12 +614,11 @@ def _build_output(idx: int, ref: dict, match: MatchResult, raw_text: str) -> dic
         "status": status,
         "verified_by": match.source if match.found and confidence > 70 else None,
         "confidence": confidence,
+        "suspicion_confidence": suspicion_confidence,
         "matched_title": match.title or "",
         "matched_doi": match.doi or "",
         "details": details,
     }
-    if suspicion_confidence is not None:
-        out["suspicion_confidence"] = suspicion_confidence
     if suspicion_reasons:
         out["suspicion_reasons"] = suspicion_reasons
     return out

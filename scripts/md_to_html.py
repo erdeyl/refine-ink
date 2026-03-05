@@ -15,7 +15,11 @@ try:
     import nh3  # type: ignore
 except ImportError:  # pragma: no cover
     nh3 = None
+
+try:
     import bleach  # type: ignore
+except ImportError:  # pragma: no cover
+    bleach = None
 
 
 def detect_language(md_text: str) -> str:
@@ -122,14 +126,20 @@ def sanitize_html(html: str) -> str:
     }
     allowed_protocols = ["http", "https", "mailto"]
     if nh3 is not None:
+        nh3_attributes = {tag: set(attrs) for tag, attrs in allowed_attributes.items()}
         # nh3 is actively maintained and supports explicit URL schemes.
         return nh3.clean(
             html,
             tags=set(allowed_tags),
-            attributes=allowed_attributes,
+            attributes=nh3_attributes,
             url_schemes=set(allowed_protocols),
             strip_comments=True,
             link_rel=None,
+        )
+
+    if bleach is None:
+        raise RuntimeError(
+            "No HTML sanitizer backend available. Install nh3 (preferred) or bleach."
         )
 
     return bleach.clean(  # type: ignore[name-defined]
@@ -145,6 +155,10 @@ def sanitize_title(title: str) -> str:
     """Strip any markup from a title before template rendering."""
     if nh3 is not None:
         return nh3.clean(title, tags=set(), attributes={}, strip_comments=True, link_rel=None).strip()
+    if bleach is None:
+        raise RuntimeError(
+            "No HTML sanitizer backend available. Install nh3 (preferred) or bleach."
+        )
     return bleach.clean(title, tags=[], attributes={}, strip=True).strip()  # type: ignore[name-defined]
 
 

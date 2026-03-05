@@ -62,7 +62,8 @@ _REF_HEADING_PATTERNS: list[re.Pattern] = [
 _NEXT_SECTION_RE = re.compile(
     r"^#{1,3}\s+\S|"
     r"^\*{1,2}[A-Z][A-Za-z ]+\*{1,2}\s*$|"
-    r"^(Appendix|Supplementary|Acknowledg(?:e)?ments?|Acknowledge)\b\s*$",
+    r"^(Appendix|Supplementary)\b.*$|"
+    r"^(Acknowledg(?:e)?ments?|Acknowledge)\b(?:\s*$|\s*[:\-].*$)",
     re.IGNORECASE | re.MULTILINE,
 )
 

@@ -31,12 +31,18 @@ except ImportError:
     fitz = None
 
 
+def _require_fitz() -> None:
+    if fitz is None:
+        raise RuntimeError("pymupdf is required. Install with: pip install pymupdf")
+
+
 # ---------------------------------------------------------------------------
 # PDF extraction helpers
 # ---------------------------------------------------------------------------
 
 def extract_pdf_text(pdf_path: str) -> str:
     """Return the full plain-text content of a PDF, page by page."""
+    _require_fitz()
     doc = fitz.open(pdf_path)
     pages = []
     for page in doc:
@@ -47,6 +53,7 @@ def extract_pdf_text(pdf_path: str) -> str:
 
 def extract_pdf_blocks(pdf_path: str) -> list[dict]:
     """Return per-page block-level data (text, fonts, sizes) for heuristic analysis."""
+    _require_fitz()
     doc = fitz.open(pdf_path)
     blocks = []
     for page_num, page in enumerate(doc):
@@ -130,6 +137,7 @@ def pdf_headings(blocks: list[dict]) -> list[str]:
 
 def pdf_tables(pdf_path: str) -> int:
     """Count tables in the PDF using pymupdf's built-in table finder."""
+    _require_fitz()
     doc = fitz.open(pdf_path)
     count = 0
     for page in doc:
@@ -240,7 +248,16 @@ def pdf_footnotes_from_blocks(blocks: list[dict], body_size: float) -> int:
 
 def md_headings(md_text: str) -> list[str]:
     """Extract top-level to subsection headings from Markdown."""
-    return re.findall(r"^#{1,3}\s+(.+)$", md_text, re.MULTILINE)
+    matches = list(re.finditer(r"^(#{1,3})\s+(.+)$", md_text, re.MULTILINE))
+    headings: list[str] = []
+    for idx, m in enumerate(matches):
+        level = len(m.group(1))
+        heading = m.group(2).strip()
+        # Exclude a likely document title H1 from section-count comparisons.
+        if idx == 0 and level == 1 and not re.match(r"^\d+(\.\d+)*\s", heading):
+            continue
+        headings.append(heading)
+    return headings
 
 
 def md_tables(md_text: str) -> int:
@@ -438,8 +455,7 @@ def last_paragraph_before_references(text: str) -> str:
 
 def verify(pdf_path: str, md_path: str) -> dict:
     """Run all checks and return the JSON-serialisable report dict."""
-    if fitz is None:
-        raise RuntimeError("pymupdf is required. Install with: pip install pymupdf")
+    _require_fitz()
 
     warnings: list[str] = []
     failures: list[str] = []
@@ -605,11 +621,10 @@ def main() -> None:
     parser.add_argument("md", help="Path to the converted Markdown file")
     args = parser.parse_args()
 
-    if fitz is None:
-        print(
-            "Error: missing dependency 'pymupdf' (fitz). Install with: pip install pymupdf",
-            file=sys.stderr,
-        )
+    try:
+        _require_fitz()
+    except RuntimeError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         sys.exit(2)
 
     pdf_path = os.path.abspath(args.pdf)

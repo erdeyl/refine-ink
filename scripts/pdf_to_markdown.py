@@ -62,7 +62,7 @@ _REF_HEADING_PATTERNS: list[re.Pattern] = [
 _NEXT_SECTION_RE = re.compile(
     r"^#{1,3}\s+\S|"
     r"^\*{1,2}[A-Z][A-Za-z ]+\*{1,2}\s*$|"
-    r"^(Appendix|Supplementary|Acknowledgment|Acknowledge)",
+    r"^(Appendix|Supplementary|Acknowledg(?:e)?ments?|Acknowledge)\b\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -77,7 +77,8 @@ _NUMBERED_RE = re.compile(r"^\s*(?:\[(\d+)\]|(\d+)\.\s|\((\d+)\))\s*")
 
 # Author-year style start for non-numbered bibliographies.
 _AUTHOR_YEAR_START_RE = re.compile(
-    r"^[A-ZÀ-ÖØ-ÝŐŰ][A-Za-zÀ-ÖØ-öø-ÿŐőŰű'’\-]+(?:\s+[A-ZÀ-ÖØ-ÝŐŰ][A-Za-zÀ-ÖØ-öø-ÿŐőŰű'’\-]+){0,2},"
+    r"^[^\W\d_][^\W\d_.'’\-]+(?:\s+[^\W\d_][^\W\d_.'’\-]+){0,2},",
+    re.UNICODE,
 )
 
 
@@ -124,7 +125,7 @@ def _looks_like_new_reference_line(stripped: str, raw_line: str) -> bool:
         return True
 
     # Fallback for styles like "Surname et al. (2020) ..."
-    return bool(re.match(r"^[A-ZÀ-ÖØ-ÝŐŰ][^.!?]{0,100}\((?:19|20)\d{2}[a-z]?\)", stripped))
+    return bool(re.match(r"^[^\W\d_][^!?]{0,100}\((?:19|20)\d{2}[a-z]?\)", stripped, flags=re.UNICODE))
 
 
 def _split_references(ref_block: str) -> list[str]:

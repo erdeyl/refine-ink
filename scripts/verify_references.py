@@ -66,6 +66,16 @@ def is_valid_doi(doi: str) -> bool:
     return bool(doi and DOI_REGEX.match(doi.strip()))
 
 
+def normalize_doi_value(doi: str) -> str:
+    """Canonical DOI normalization for equality checks."""
+    if not doi:
+        return ""
+    value = doi.strip().lower()
+    value = re.sub(r"^https?://(?:dx\.)?doi\.org/", "", value)
+    value = re.sub(r"^doi:\s*", "", value)
+    return value.strip()
+
+
 def extract_year(value: object) -> Optional[str]:
     """Extract a 4-digit year from API values."""
     if value is None:
@@ -537,7 +547,11 @@ def _build_output(idx: int, ref: dict, match: MatchResult, raw_text: str) -> dic
     """Construct the output dict from a MatchResult."""
     doi = (ref.get("doi") or "").strip()
     ref_title = ref.get("title", "")
-    exact_doi_match = bool(doi and match.doi and normalize(doi) == normalize(match.doi))
+    exact_doi_match = bool(
+        doi
+        and match.doi
+        and normalize_doi_value(doi) == normalize_doi_value(match.doi)
+    )
 
     # Determine confidence and status
     if match.found:
@@ -582,25 +596,30 @@ def _build_output(idx: int, ref: dict, match: MatchResult, raw_text: str) -> dic
         details = "Not found in CrossRef, OpenAlex, or Semantic Scholar"
 
     suspicion_reasons = detect_suspicion(ref, match)
+    suspicion_confidence: Optional[int] = None
     if suspicion_reasons and status == "verified":
         status = "suspicious"
         confidence = min(confidence, 80)
         details = f"{details}; metadata inconsistencies require review"
     elif suspicion_reasons and status == "unverifiable":
         status = "suspicious"
-        confidence = max(confidence, 40)
+        # Keep confidence semantics as "verification confidence" (still 0 here)
+        # and report suspicion strength separately to avoid ambiguity.
+        suspicion_confidence = 40
         details = f"{details}; heuristic signals indicate potential fabrication"
 
     out = {
         "ref_index": idx,
         "raw_text": raw_text or _reconstruct_raw(ref),
         "status": status,
-        "verified_by": match.source if match.found and confidence >= 70 else None,
+        "verified_by": match.source if match.found and confidence > 70 else None,
         "confidence": confidence,
         "matched_title": match.title or "",
         "matched_doi": match.doi or "",
         "details": details,
     }
+    if suspicion_confidence is not None:
+        out["suspicion_confidence"] = suspicion_confidence
     if suspicion_reasons:
         out["suspicion_reasons"] = suspicion_reasons
     return out

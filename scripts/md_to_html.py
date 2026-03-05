@@ -7,9 +7,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import bleach
 import markdown
-from jinja2 import Template
+from jinja2 import Environment, select_autoescape
+from markupsafe import Markup
+
+try:
+    import nh3  # type: ignore
+except ImportError:  # pragma: no cover
+    nh3 = None
+    import bleach  # type: ignore
 
 
 def detect_language(md_text: str) -> str:
@@ -115,13 +121,31 @@ def sanitize_html(html: str) -> str:
         "span": ["class"],
     }
     allowed_protocols = ["http", "https", "mailto"]
-    return bleach.clean(
+    if nh3 is not None:
+        # nh3 is actively maintained and supports explicit URL schemes.
+        return nh3.clean(
+            html,
+            tags=set(allowed_tags),
+            attributes=allowed_attributes,
+            url_schemes=set(allowed_protocols),
+            strip_comments=True,
+            link_rel=None,
+        )
+
+    return bleach.clean(  # type: ignore[name-defined]
         html,
         tags=allowed_tags,
         attributes=allowed_attributes,
         protocols=allowed_protocols,
         strip=True,
     )
+
+
+def sanitize_title(title: str) -> str:
+    """Strip any markup from a title before template rendering."""
+    if nh3 is not None:
+        return nh3.clean(title, tags=set(), attributes={}, strip_comments=True, link_rel=None).strip()
+    return bleach.clean(title, tags=[], attributes={}, strip=True).strip()  # type: ignore[name-defined]
 
 
 def convert(md_path: str, output_path: str | None = None) -> str:
@@ -140,14 +164,21 @@ def convert(md_path: str, output_path: str | None = None) -> str:
     html_content = markdown.markdown(md_text, extensions=extensions)
     html_content = enhance_html(html_content)
     html_content = sanitize_html(html_content)
+    safe_title = sanitize_title(title)
 
     template_path = Path(__file__).parent / "review_template.html"
-    template = Template(template_path.read_text(encoding="utf-8"))
+    env = Environment(
+        autoescape=select_autoescape(
+            enabled_extensions=("html", "xml"),
+            default_for_string=True,
+        )
+    )
+    template = env.from_string(template_path.read_text(encoding="utf-8"))
 
     full_html = template.render(
         lang=lang,
-        title=title,
-        content=html_content,
+        title=safe_title,
+        content=Markup(html_content),
         date=datetime.now().strftime("%Y-%m-%d"),
     )
 

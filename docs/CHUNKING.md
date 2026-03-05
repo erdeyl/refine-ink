@@ -139,3 +139,14 @@ A 150-page dissertation with 50,000 words produces approximately 50--80 chunks, 
 - Total review time is typically 60--90 minutes vs. 15--30 minutes for an article
 
 The system reports estimated completion time at the start of the review based on the word count and document type.
+
+---
+
+## Figure Integration
+
+When the PDF conversion extracts figure images (via `--extract-figures`):
+
+1. **Empirical agent** receives figure image paths alongside text chunks containing figure references
+2. The orchestrator instructs the agent to use the Read tool on each figure image to verify text claims about trends, values, or patterns visible in the figure
+3. Chunks tagged with `has_figures: true` receive special attention: the empirical agent must cross-check any text claims about visual evidence against the extracted images
+4. If figure extraction fails or produces no images, the empirical agent is instructed to flag unverifiable text-figure claims as a limitation

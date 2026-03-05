@@ -59,12 +59,13 @@ For systematic reviews specifically:
 For each identified gap or issue:
 
 - **Gap description**: What is missing and why it matters
-- **Confidence level**: Mark each suggestion with confidence:
-  - **HIGH** — This is a landmark paper in the field; any expert reviewer would expect it
-  - **MEDIUM** — This appears relevant based on API/search results, but I am not certain of its centrality
-  - **LOW** — This might be relevant but I cannot confirm its importance
+- **Severity**: `critical`, `major`, `minor`, or `suggestion`
+- **Confidence**: 0–100% (90–100 = landmark paper any expert would expect; 70–89 = relevant based on API/search; 50–69 = possibly relevant but unconfirmed)
+- **Evidence**: Exact quote from the document showing the gap or missing context
+- **Location**: Section name + page number where the gap is most apparent
 - **Relationship to paper**: How the missing reference relates to the paper's argument or methodology
 - **Verification status**: Whether the suggested reference was verified via API/search (include source)
+- **Correction**: Specific recommendation for what to cite or how to address the gap
 
 ## Critical Rules
 

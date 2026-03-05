@@ -120,6 +120,13 @@ All corrections and commentary must meet the following quality bar:
 3. **Self-contained**: Each finding must be understandable on its own, without requiring the reader to look up other findings.
 4. **Contextualized**: Explain WHY the issue matters, not just WHAT the issue is. A finding that says "this number is wrong" without explaining the consequence is incomplete.
 
+### Figure and Visual Evidence Verification
+
+When the paper makes claims about figures, charts, or visual patterns:
+1. **If figure images are available**: Verify that text descriptions match the visual evidence (approximate values, trends, crossing points, endpoint levels)
+2. **If figure images are NOT available**: Flag any strong empirical claim that rests solely on figure interpretation as "unverifiable from text alone" and note this limitation
+3. **Always check**: Whether text descriptions of approximate values, trends, or levels are consistent with any numerical data available in tables or elsewhere in the text
+
 ### Hungarian-Language Papers
 
 For papers written in Hungarian:

@@ -50,17 +50,18 @@ You are conducting a rigorous, multi-pass scientific paper review that produces 
 
 ### Phase 1 — PDF Conversion & Verification
 
-1. Run: `.venv/bin/python scripts/pdf_to_markdown.py "$PDF_PATH" --output-dir reviews/[name]/input/`
+1. Run: `.venv/bin/python scripts/pdf_to_markdown.py "$PDF_PATH" --output-dir reviews/[name]/input/ --extract-figures`
 2. Run: `.venv/bin/python scripts/verify_conversion.py "$PDF_PATH" reviews/[name]/input/*_converted.md`
 3. Read the verification report.
    - **PASS/WARN**: Proceed. Show any warnings to the user.
    - **FAIL**: STOP. Show failures. Ask user to inspect the markdown or provide an alternative.
-4. Read the converted markdown to determine:
+4. Catalog any extracted figure images in `input/figures/`. If figures were extracted, note their paths for use in Phase 3 (empirical agent).
+5. Read the converted markdown to determine:
    - **Language**: English or Hungarian (check for Hungarian words, diacritics, structure)
    - **Document type**: Article (~5-40 pages) or PhD dissertation (~100-200 pages)
    - **Word count**: from the conversion stats
-5. Report: "Paper: [title], Language: [lang], Type: [type], [N] words, [N] pages"
-6. Estimate completion time based on the time table in the plan.
+6. Report: "Paper: [title], Language: [lang], Type: [type], [N] words, [N] pages, [N] figures extracted"
+7. Estimate completion time based on the time table in the plan.
 
 ### Phase 2 — Chunking
 
@@ -138,10 +139,18 @@ The econometrics agent MUST evaluate the research DESIGN (methodology/identifica
 
 1. **math-logic** — Give it chunks containing equations/proofs (chunk size: 800-1200 words each)
 2. **notation** — Give it ALL chunks in groups of 3-4 (chunk size: 800-1200 words)
-3. **exposition** — Give it ALL chunks in groups of 3-4 (chunk size: 1500-2500 words)
-4. **empirical** — Give it chunks with tables/figures + surrounding text (chunk size: 1000-1500 words)
-5. **cross-section** — Give it PAIRS of related chunks: intro↔results, methods↔results, abstract↔conclusion (chunk size: 2000-3000 words per pair)
-6. **econometrics** — Give it methodology chunks FIRST, then results chunks. Instruct design-before-results evaluation. (chunk size: 1200-1800 words)
+3. **exposition** — Give it ALL chunks in groups of 3-4 (chunk size: 1500-2500 words). Include these additional checks in the prompt:
+   - **Terminological precision**: When a key term (e.g., "gender-balanced," "feminisation," "equality") is used in multiple places, verify it carries a consistent meaning. Flag cases where a term is ambiguous or shifts meaning across sections.
+   - **Descriptive-to-causal language gap**: When the methodology is purely descriptive (correlations, time-series plots), verify that the interpretation and discussion do not slide into causal language ("leads to," "causes," "drives," "results in") without appropriate qualification. This is especially important in Discussion and Conclusions sections.
+   - **List parallelism and category errors**: In complex enumerations, verify that listed items are grammatically parallel and belong to the same semantic category (e.g., don't mix professions with health systems, or causes with effects).
+4. **empirical** — Give it chunks with tables/figures + surrounding text (chunk size: 1000-1500 words). If figure images were extracted in Phase 1, pass their file paths and instruct the agent to use the Read tool on each image to verify text claims. Include these additional checks:
+   - **Figure verification**: Compare text claims about figures with the visual evidence. If no figure images are available, flag text-figure claims that cannot be verified from tables alone.
+   - **Universal qualifier audit**: When text uses "uniformly," "always," "in every country," "without exception," or similar universal quantifiers, verify against ALL data points in the relevant table. Check for missing values (N/A), non-significant estimates, and exceptions.
+   - **Coverage matrix awareness**: When a table contains variable sample sizes across cells, note whether the text acknowledges this and whether conclusions drawn from sparse cells (N<10) are appropriately qualified.
+5. **cross-section** — Give it PAIRS of related chunks: intro↔results, methods↔results, abstract↔conclusion (chunk size: 2000-3000 words per pair). Include this additional check:
+   - **Abstract paradox clarity**: If the paper coins or introduces a key concept (e.g., a "paradox," "puzzle," or "stylised fact"), verify that the abstract's framing is precise and cannot be misread as contradicting the paper's own findings.
+6. **econometrics** — Give it methodology chunks FIRST, then results chunks. Instruct design-before-results evaluation. (chunk size: 1200-1800 words). Include this additional check:
+   - **Data harmonisation assessment**: Before evaluating the statistical methodology, assess data quality: (a) Are variables from different sources defined consistently? Check for headcount vs FTE, practising vs professionally active vs licensed. (b) Does the paper explain how indicators from different sources were harmonised? (c) Are observation windows comparable across countries/units and indicators? (d) Are series breaks or reclassifications acknowledged? This is especially important for cross-country studies combining multiple international databases.
 7. **language** — Give it ALL chunks in groups of 3-4 (chunk size: 1500-2000 words)
 
 Report: "Phase 3: All 7 analysis agents launched. Waiting for results..."
@@ -203,10 +212,11 @@ Aggregate all validated findings and write the referee report:
 3. **Major Comments**: Numbered substantive paragraphs — each with verbatim corrections
 4. **Minor Comments**: Numbered brief items with corrections
 5. **Econometric/Statistical Methodology**: Dedicated section
-6. **Literature and References**: Assessment + verification summary
-7. **Language and Presentation**: Constructive suggestions
-8. **Suggestions for Improvement**: Optional enhancements
-9. **Appendices**: Detailed findings table, low-confidence findings, methodology notes
+6. **Data Quality and Measurement**: Assessment of data definitions, harmonisation across sources, coverage consistency, and observation-window comparability.
+7. **Literature and References**: Assessment + verification summary
+8. **Language and Presentation**: Constructive suggestions
+9. **Suggestions for Improvement**: Optional enhancements
+10. **Appendices**: Detailed findings table, low-confidence findings, methodology notes
 
 **Writing style:**
 - Human-like academic prose, NOT bullet points or AI-generated templates

@@ -12,13 +12,13 @@ Usage:
 Outputs:
     <filename>_converted.md      - Full Markdown text
     <filename>_references.json   - Structured reference entries
+    figures/<filename>_fig_p<page>_<idx>.<ext>  - Extracted figure images (with --extract-figures)
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -245,6 +245,89 @@ def extract_references(md_text: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Figure extraction
+# ---------------------------------------------------------------------------
+
+# Minimum dimensions (pixels) to consider an image a figure vs an icon/logo
+_MIN_FIGURE_WIDTH = 150
+_MIN_FIGURE_HEIGHT = 100
+
+
+def extract_figures(pdf_path: Path, output_dir: Path) -> list[dict]:
+    """Extract embedded images from a PDF that likely represent figures.
+
+    Returns a list of dicts with keys: page, index, path, width, height.
+    """
+    try:
+        import pymupdf  # type: ignore
+    except ImportError:
+        print("Warning: pymupdf not available for figure extraction", file=sys.stderr)
+        return []
+
+    figures_dir = output_dir / "figures"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    stem = pdf_path.stem
+    extracted: list[dict] = []
+
+    try:
+        doc = pymupdf.open(str(pdf_path))
+    except Exception as exc:
+        print(f"Warning: could not open PDF for figure extraction: {exc}", file=sys.stderr)
+        return []
+
+    seen_xrefs: set[int] = set()
+    try:
+        for page_num in range(doc.page_count):
+            page = doc[page_num]
+            image_list = page.get_images(full=True)
+
+            for img_idx, img_info in enumerate(image_list):
+                xref = img_info[0]
+                if xref in seen_xrefs:
+                    continue
+                seen_xrefs.add(xref)
+
+                try:
+                    base_image = doc.extract_image(xref)
+                except Exception:
+                    continue
+
+                width = base_image.get("width", 0)
+                height = base_image.get("height", 0)
+
+                if width < _MIN_FIGURE_WIDTH or height < _MIN_FIGURE_HEIGHT:
+                    continue
+
+                img_bytes = base_image.get("image")
+                if not img_bytes:
+                    continue
+                ext = base_image.get("ext", "png")
+                filename = f"{stem}_fig_p{page_num + 1}_{img_idx}.{ext}"
+                img_path = figures_dir / filename
+
+                try:
+                    img_path.write_bytes(img_bytes)
+                    extracted.append({
+                        "page": page_num + 1,
+                        "index": img_idx,
+                        "path": str(img_path),
+                        "width": width,
+                        "height": height,
+                    })
+                except OSError:
+                    continue
+    finally:
+        doc.close()
+
+    if extracted:
+        print(f"Figures extracted: {len(extracted)} images saved to {figures_dir}")
+    else:
+        print("Figures: no extractable figure images found in PDF")
+
+    return extracted
+
+
+# ---------------------------------------------------------------------------
 # Conversion statistics
 # ---------------------------------------------------------------------------
 
@@ -271,6 +354,8 @@ def _print_stats(stats: dict) -> None:
     print(f"  Words:    {stats['words']}")
     print(f"  Sections: {stats['sections']}")
     print(f"  Tables:   {stats['tables']}")
+    if "figures" in stats:
+        print(f"  Figures:  {stats['figures']}")
     print("-----------------------------\n")
 
 
@@ -278,7 +363,11 @@ def _print_stats(stats: dict) -> None:
 # Main conversion logic
 # ---------------------------------------------------------------------------
 
-def convert_pdf(pdf_path: Path, output_dir: Optional[Path] = None) -> int:
+def convert_pdf(
+    pdf_path: Path,
+    output_dir: Optional[Path] = None,
+    do_extract_figures: bool = False,
+) -> int:
     """Convert a PDF to Markdown + references JSON. Returns an exit code."""
     # ------------------------------------------------------------------
     # 1. Validate input
@@ -375,9 +464,17 @@ def convert_pdf(pdf_path: Path, output_dir: Optional[Path] = None) -> int:
         return EXIT_IO_ERROR
 
     # ------------------------------------------------------------------
-    # 7. Print statistics
+    # 7. Extract figures (optional)
+    # ------------------------------------------------------------------
+    figures: list[dict] = []
+    if do_extract_figures:
+        figures = extract_figures(pdf_path, output_dir)
+
+    # ------------------------------------------------------------------
+    # 8. Print statistics
     # ------------------------------------------------------------------
     stats = _compute_stats(md_text, page_count)
+    stats["figures"] = len(figures)
     _print_stats(stats)
 
     return EXIT_OK
@@ -402,9 +499,15 @@ def main() -> int:
         default=None,
         help="Directory for output files (default: same directory as the PDF).",
     )
+    parser.add_argument(
+        "--extract-figures",
+        action="store_true",
+        default=False,
+        help="Extract embedded figure images from the PDF into a figures/ subdirectory.",
+    )
 
     args = parser.parse_args()
-    return convert_pdf(args.pdf, args.output_dir)
+    return convert_pdf(args.pdf, args.output_dir, do_extract_figures=args.extract_figures)
 
 
 if __name__ == "__main__":

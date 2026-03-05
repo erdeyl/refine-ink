@@ -85,7 +85,7 @@ def enhance_html(html: str) -> str:
 
 def sanitize_html(html: str) -> str:
     """Sanitize generated HTML to prevent script/style injection."""
-    allowed_tags = [
+    allowed_tags = {
         "a",
         "blockquote",
         "br",
@@ -115,24 +115,19 @@ def sanitize_html(html: str) -> str:
         "thead",
         "tr",
         "ul",
-    ]
-    allowed_attributes = {
-        "*": ["id", "class"],
-        "a": ["href", "title", "name"],
-        "img": ["src", "alt", "title"],
-        "td": ["class"],
-        "div": ["class"],
-        "span": ["class"],
     }
-    allowed_protocols = ["http", "https", "mailto"]
+    allowed_attributes = {
+        "*": {"id", "class"},
+        "a": {"href", "title", "name"},
+        "img": {"src", "alt", "title"},
+    }
+    url_schemes = {"http", "https", "mailto"}
     if nh3 is not None:
-        nh3_attributes = {tag: set(attrs) for tag, attrs in allowed_attributes.items()}
-        # nh3 is actively maintained and supports explicit URL schemes.
         return nh3.clean(
             html,
-            tags=set(allowed_tags),
-            attributes=nh3_attributes,
-            url_schemes=set(allowed_protocols),
+            tags=allowed_tags,
+            attributes=allowed_attributes,
+            url_schemes=url_schemes,
             strip_comments=True,
             link_rel=None,
         )
@@ -142,11 +137,11 @@ def sanitize_html(html: str) -> str:
             "No HTML sanitizer backend available. Install nh3 (preferred) or bleach."
         )
 
-    return bleach.clean(  # type: ignore[name-defined]
+    return bleach.clean(
         html,
-        tags=allowed_tags,
-        attributes=allowed_attributes,
-        protocols=allowed_protocols,
+        tags=list(allowed_tags),
+        attributes={tag: list(attrs) for tag, attrs in allowed_attributes.items()},
+        protocols=list(url_schemes),
         strip=True,
     )
 

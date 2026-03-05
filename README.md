@@ -113,10 +113,11 @@ Each review produces a structured referee report containing:
 3. **Major Comments** -- substantive issues with verbatim corrections
 4. **Minor Comments** -- notation, clarity, and presentation issues
 5. **Econometric/Statistical Methodology** -- dedicated methodology assessment
-6. **Literature and References** -- coverage gaps + verification summary
-7. **Language and Presentation** -- constructive language suggestions
-8. **Suggestions for Improvement** -- optional enhancements
-9. **Appendices** -- detailed findings table, low-confidence findings, methodology notes
+6. **Data Quality and Measurement** -- data definitions, harmonisation, coverage consistency
+7. **Literature and References** -- coverage gaps + verification summary
+8. **Language and Presentation** -- constructive language suggestions
+9. **Suggestions for Improvement** -- optional enhancements
+10. **Appendices** -- detailed findings table, low-confidence findings, methodology notes
 
 **Output files:**
 - `review_EN.md` + `review_EN.html` -- English review

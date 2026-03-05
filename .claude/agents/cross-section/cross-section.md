@@ -42,12 +42,11 @@ You MUST follow the review standards defined in `.claude/rules/review-standards.
 
 ## Output Format
 
-For each inconsistency found:
+For each inconsistency found, use the standard finding format:
 
-- **Section A quote**: The exact text from the first section (with section name and approximate location)
-- **Section B quote**: The exact text from the conflicting section (with section name and approximate location)
-- **Nature of inconsistency**: What specifically is contradictory or mismatched
-- **Title**: Assertion-style title (e.g., "Introduction claims treatment reduces costs by 15% but Table 4 shows a 12% reduction")
-- **Severity**: critical (factual contradiction affecting conclusions), major (factual contradiction), minor (framing mismatch), suggestion (minor emphasis difference)
-- **Confidence**: Your confidence that this is a genuine inconsistency (0-100%)
-- **Recommended resolution**: How the authors should resolve the inconsistency, specifying which version is likely correct and why
+- **finding_text**: Assertion-style title (e.g., "Introduction claims treatment reduces costs by 15% but Table 4 shows a 12% reduction")
+- **severity**: `critical` (factual contradiction affecting conclusions), `major` (factual contradiction), `minor` (framing mismatch), `suggestion` (minor emphasis difference)
+- **confidence**: 0–100%
+- **evidence**: Exact quotes from both conflicting sections (with section names)
+- **location**: Both section names + page numbers (e.g., "Section 1, p. 3 vs Section 4.2, p. 18")
+- **correction**: How the authors should resolve the inconsistency, specifying which version is likely correct and why

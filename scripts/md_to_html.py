@@ -7,9 +7,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import bleach
+import nh3
 import markdown
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader
 
 
 def detect_language(md_text: str) -> str:
@@ -75,7 +75,7 @@ def enhance_html(html: str) -> str:
 
 def sanitize_html(html: str) -> str:
     """Sanitize generated HTML to prevent script/style injection."""
-    allowed_tags = [
+    allowed_tags = {
         "a",
         "blockquote",
         "br",
@@ -105,22 +105,18 @@ def sanitize_html(html: str) -> str:
         "thead",
         "tr",
         "ul",
-    ]
-    allowed_attributes = {
-        "*": ["id", "class"],
-        "a": ["href", "title", "name"],
-        "img": ["src", "alt", "title"],
-        "td": ["class"],
-        "div": ["class"],
-        "span": ["class"],
     }
-    allowed_protocols = ["http", "https", "mailto"]
-    return bleach.clean(
+    allowed_attributes = {
+        "*": {"id", "class"},
+        "a": {"href", "title", "name"},
+        "img": {"src", "alt", "title"},
+    }
+    url_schemes = {"http", "https", "mailto"}
+    return nh3.clean(
         html,
         tags=allowed_tags,
         attributes=allowed_attributes,
-        protocols=allowed_protocols,
-        strip=True,
+        url_schemes=url_schemes,
     )
 
 
@@ -141,8 +137,12 @@ def convert(md_path: str, output_path: str | None = None) -> str:
     html_content = enhance_html(html_content)
     html_content = sanitize_html(html_content)
 
-    template_path = Path(__file__).parent / "review_template.html"
-    template = Template(template_path.read_text(encoding="utf-8"))
+    template_dir = Path(__file__).parent
+    env = Environment(
+        loader=FileSystemLoader(str(template_dir)),
+        autoescape=True,
+    )
+    template = env.get_template("review_template.html")
 
     full_html = template.render(
         lang=lang,

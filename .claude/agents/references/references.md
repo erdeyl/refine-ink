@@ -67,10 +67,11 @@ Watch for these specific hallucination patterns:
 
 ### Per-Reference Detail (for suspicious references only)
 
-For each suspicious reference:
+For each suspicious reference, use the standard finding format:
 
-- **Reference**: Full citation as it appears in the paper
-- **Flag reason**: Exactly which hallucination pattern was detected
-- **Evidence**: What the API/search results showed (e.g., "CrossRef returns no results for this title; the author has 47 papers indexed but none with this title")
-- **Confidence that this is hallucinated**: 0-100%
-- **Recommendation**: What the authors should do (verify and correct, replace, or remove)
+- **finding_text**: Assertion-style title (e.g., "Reference [12] title does not exist in any database and may be fabricated")
+- **severity**: `critical` (likely fabricated), `major` (metadata mismatch), `minor` (formatting issue), `suggestion` (self-citation concern)
+- **confidence**: 0–100%
+- **evidence**: Exact citation as it appears in the paper + what the API/search results showed
+- **location**: Reference list entry number and any in-text citation locations
+- **correction**: What the authors should do (verify and correct, replace, or remove)

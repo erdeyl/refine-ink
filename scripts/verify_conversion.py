@@ -38,33 +38,37 @@ except ImportError:
 def extract_pdf_text(pdf_path: str) -> str:
     """Return the full plain-text content of a PDF, page by page."""
     doc = fitz.open(pdf_path)
-    pages = []
-    for page in doc:
-        pages.append(page.get_text("text"))
-    doc.close()
-    return "\n".join(pages)
+    try:
+        pages = []
+        for page in doc:
+            pages.append(page.get_text("text"))
+        return "\n".join(pages)
+    finally:
+        doc.close()
 
 
 def extract_pdf_blocks(pdf_path: str) -> list[dict]:
     """Return per-page block-level data (text, fonts, sizes) for heuristic analysis."""
     doc = fitz.open(pdf_path)
-    blocks = []
-    for page_num, page in enumerate(doc):
-        page_dict = page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)
-        for block in page_dict.get("blocks", []):
-            if block.get("type") == 0:  # text block
-                for line in block.get("lines", []):
-                    for span in line.get("spans", []):
-                        blocks.append({
-                            "page": page_num,
-                            "text": span.get("text", ""),
-                            "size": span.get("size", 0),
-                            "flags": span.get("flags", 0),  # bold=16, italic=2
-                            "font": span.get("font", ""),
-                            "bbox": span.get("bbox", []),
-                        })
-    doc.close()
-    return blocks
+    try:
+        blocks = []
+        for page_num, page in enumerate(doc):
+            page_dict = page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)
+            for block in page_dict.get("blocks", []):
+                if block.get("type") == 0:  # text block
+                    for line in block.get("lines", []):
+                        for span in line.get("spans", []):
+                            blocks.append({
+                                "page": page_num,
+                                "text": span.get("text", ""),
+                                "size": span.get("size", 0),
+                                "flags": span.get("flags", 0),  # bold=16, italic=2
+                                "font": span.get("font", ""),
+                                "bbox": span.get("bbox", []),
+                            })
+        return blocks
+    finally:
+        doc.close()
 
 
 # ---------------------------------------------------------------------------
@@ -91,8 +95,8 @@ def normalize(text: str) -> str:
 # Metric extraction: PDF
 # ---------------------------------------------------------------------------
 
-def _median_body_size(blocks: list[dict]) -> float:
-    """Estimate the most common (body) font size from span data."""
+def _mode_body_size(blocks: list[dict]) -> float:
+    """Estimate the most common (mode) body font size from span data."""
     sizes = [b["size"] for b in blocks if b["text"].strip()]
     if not sizes:
         return 12.0
@@ -106,7 +110,7 @@ def _median_body_size(blocks: list[dict]) -> float:
 
 def pdf_headings(blocks: list[dict]) -> list[str]:
     """Heuristically detect headings: spans larger than body text or bold."""
-    body_size = _median_body_size(blocks)
+    body_size = _mode_body_size(blocks)
     threshold = body_size + 0.5  # anything noticeably larger is a heading
 
     headings: list[str] = []
@@ -131,15 +135,17 @@ def pdf_headings(blocks: list[dict]) -> list[str]:
 def pdf_tables(pdf_path: str) -> int:
     """Count tables in the PDF using pymupdf's built-in table finder."""
     doc = fitz.open(pdf_path)
-    count = 0
-    for page in doc:
-        try:
-            tables = page.find_tables()
-            count += len(tables.tables)
-        except Exception:
-            pass
-    doc.close()
-    return count
+    try:
+        count = 0
+        for page in doc:
+            try:
+                tables = page.find_tables()
+                count += len(tables.tables)
+            except Exception:
+                pass
+        return count
+    finally:
+        doc.close()
 
 
 def pdf_references(text: str) -> int:
@@ -447,7 +453,7 @@ def verify(pdf_path: str, md_path: str) -> dict:
     # --- Load sources ---
     pdf_text = extract_pdf_text(pdf_path)
     blocks = extract_pdf_blocks(pdf_path)
-    body_size = _median_body_size(blocks)
+    body_size = _mode_body_size(blocks)
 
     with open(md_path, "r", encoding="utf-8") as f:
         md_text = f.read()

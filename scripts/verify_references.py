@@ -309,8 +309,9 @@ async def openalex_lookup(
     if not ref_title:
         return result
 
+    sanitized_title = re.sub(r"[,:;!?()\[\]{}<>]", " ", ref_title).strip()
     params = {
-        "filter": f"title.search:{ref_title}",
+        "filter": f"title.search:{sanitized_title}",
         "per_page": 5,
     }
     if mailto:
@@ -659,7 +660,7 @@ async def verify_all(
                 )
 
         tasks = [asyncio.create_task(_worker(i, ref)) for i, ref in enumerate(references)]
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     return [r for r in results if r is not None]
 
@@ -731,7 +732,7 @@ def parse_args() -> argparse.Namespace:
         "--s2-api-key",
         type=str,
         default=None,
-        help="Semantic Scholar API key (or set S2_API_KEY env var).",
+        help="Semantic Scholar API key. Prefer setting the S2_API_KEY environment variable instead of passing on the command line.",
     )
     parser.add_argument(
         "--output",
@@ -751,8 +752,12 @@ def main():
         print(f"Error: input file not found: {input_path}", file=sys.stderr)
         sys.exit(1)
 
-    with open(input_path, "r", encoding="utf-8") as f:
-        references = json.load(f)
+    try:
+        with open(input_path, "r", encoding="utf-8") as f:
+            references = json.load(f)
+    except json.JSONDecodeError as exc:
+        print(f"Error: invalid JSON in {input_path}: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     if not isinstance(references, list):
         print("Error: input JSON must be an array of reference objects.", file=sys.stderr)

@@ -120,18 +120,9 @@ Evaluate the paper's identification strategy in depth. For each method used, che
 - **Leave-one-out sensitivity**: For studies with small numbers of treated units (e.g., synthetic control, event studies with few events), is the result robust to dropping individual units?
 - **Sensitivity to outliers**: Has the paper checked whether results are driven by extreme observations?
 
-### Common Statistical Pitfalls Checklist
+### Common Statistical Pitfalls
 
-Check for these frequently-occurring issues:
-
-1. **p-hacking / specification searching**: Are there signs that specifications were chosen to obtain significant results? (Many specifications tested but only favorable ones reported)
-2. **Winner's curse**: If the paper reports the largest effect from among many specifications, the true effect is likely smaller
-3. **Garden of forking paths**: Are there many researcher degrees of freedom in variable construction, sample selection, and model specification?
-4. **Ecological fallacy**: Are group-level results interpreted as individual-level effects?
-5. **Simpson's paradox**: Could aggregation or disaggregation reverse the direction of the effect?
-6. **Misinterpreting insignificance as zero effect**: Does the paper treat a non-significant coefficient as evidence of no effect, rather than acknowledging low power?
-7. **Comparing significance rather than magnitudes**: Does the paper say "X is significant but Y is not" when the coefficients are similar in magnitude? The proper test is an interaction or difference test.
-8. **Endogenous subgroup analysis**: Are subgroup comparisons based on post-treatment characteristics?
+Be aware of common statistical pitfalls, cognitive biases, and logical fallacies documented in `.claude/rules/statistical-pitfalls.md`. Do NOT use that list as a checklist — only flag items you actually detect in the paper with evidence. Key pitfalls to watch for in econometric work include p-hacking, winner's curse, ecological fallacy, Simpson's paradox, misinterpreting non-significance as zero effect, comparing significance rather than magnitudes, and endogenous subgroup analysis.
 
 ### Systematic Reviews and Meta-Analyses
 

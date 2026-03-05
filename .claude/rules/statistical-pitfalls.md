@@ -37,12 +37,18 @@ These are common methodological errors in social science research. Flag them whe
 22. **Heteroskedasticity ignored**: Using standard OLS standard errors when errors are heteroskedastic
 23. **Clustered data with individual-level standard errors**: Understating standard errors when observations are grouped
 
+### Data Quality and Measurement Errors
+24. **Definitional inconsistency across sources**: Combining data from multiple databases (e.g., WHO, Eurostat, OECD) without verifying that variables use the same definition (headcount vs full-time equivalents; practising vs professionally active vs licensed)
+25. **Non-overlapping observation windows**: Computing and comparing statistics across units when the available years differ substantially, making magnitudes non-comparable
+26. **Series breaks and reclassifications**: Changes in data collection methodology creating artificial jumps or trends that contaminate time-series analysis
+27. **Universal qualifier overclaiming**: Using "uniformly," "always," "in every country," "without exception" when the data contain missing values, non-significant estimates, or exceptions
+
 ### Interpretation Errors
-24. **Confusing correlation with causation**: Drawing causal conclusions from associational evidence
-25. **Confusing statistical significance with economic significance**: A tiny but precisely estimated effect may be statistically significant but economically meaningless
-26. **Over-generalizing from LATE**: Interpreting a local average treatment effect as a general average treatment effect
-27. **Extrapolation beyond support**: Drawing conclusions for populations or settings not represented in the data
-28. **Ignoring external validity**: Findings from a specific context may not generalize
+28. **Confusing correlation with causation**: Drawing causal conclusions from associational evidence
+29. **Confusing statistical significance with economic significance**: A tiny but precisely estimated effect may be statistically significant but economically meaningless
+30. **Over-generalizing from LATE**: Interpreting a local average treatment effect as a general average treatment effect
+31. **Extrapolation beyond support**: Drawing conclusions for populations or settings not represented in the data
+32. **Ignoring external validity**: Findings from a specific context may not generalize
 
 ---
 

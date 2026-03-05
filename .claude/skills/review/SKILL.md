@@ -212,11 +212,11 @@ Aggregate all validated findings and write the referee report:
 3. **Major Comments**: Numbered substantive paragraphs — each with verbatim corrections
 4. **Minor Comments**: Numbered brief items with corrections
 5. **Econometric/Statistical Methodology**: Dedicated section
-5b. **Data Quality and Measurement**: Assessment of data definitions, harmonisation across sources, coverage consistency, and observation-window comparability.
-6. **Literature and References**: Assessment + verification summary
-7. **Language and Presentation**: Constructive suggestions
-8. **Suggestions for Improvement**: Optional enhancements
-9. **Appendices**: Detailed findings table, low-confidence findings, methodology notes
+6. **Data Quality and Measurement**: Assessment of data definitions, harmonisation across sources, coverage consistency, and observation-window comparability.
+7. **Literature and References**: Assessment + verification summary
+8. **Language and Presentation**: Constructive suggestions
+9. **Suggestions for Improvement**: Optional enhancements
+10. **Appendices**: Detailed findings table, low-confidence findings, methodology notes
 
 **Writing style:**
 - Human-like academic prose, NOT bullet points or AI-generated templates

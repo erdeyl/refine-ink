@@ -12,7 +12,7 @@ Usage:
 Outputs:
     <filename>_converted.md      - Full Markdown text
     <filename>_references.json   - Structured reference entries
-    figures/<filename>_fig_p<page>_<idx>.png  - Extracted figure images (with --extract-figures)
+    figures/<filename>_fig_p<page>_<idx>.<ext>  - Extracted figure images (with --extract-figures)
 """
 
 from __future__ import annotations
@@ -274,41 +274,49 @@ def extract_figures(pdf_path: Path, output_dir: Path) -> list[dict]:
         print(f"Warning: could not open PDF for figure extraction: {exc}", file=sys.stderr)
         return []
 
-    for page_num in range(doc.page_count):
-        page = doc[page_num]
-        image_list = page.get_images(full=True)
+    seen_xrefs: set[int] = set()
+    try:
+        for page_num in range(doc.page_count):
+            page = doc[page_num]
+            image_list = page.get_images(full=True)
 
-        for img_idx, img_info in enumerate(image_list):
-            xref = img_info[0]
-            try:
-                base_image = doc.extract_image(xref)
-            except Exception:
-                continue
+            for img_idx, img_info in enumerate(image_list):
+                xref = img_info[0]
+                if xref in seen_xrefs:
+                    continue
+                seen_xrefs.add(xref)
 
-            width = base_image.get("width", 0)
-            height = base_image.get("height", 0)
+                try:
+                    base_image = doc.extract_image(xref)
+                except Exception:
+                    continue
 
-            if width < _MIN_FIGURE_WIDTH or height < _MIN_FIGURE_HEIGHT:
-                continue
+                width = base_image.get("width", 0)
+                height = base_image.get("height", 0)
 
-            img_bytes = base_image["image"]
-            ext = base_image.get("ext", "png")
-            filename = f"{stem}_fig_p{page_num + 1}_{img_idx}.{ext}"
-            img_path = figures_dir / filename
+                if width < _MIN_FIGURE_WIDTH or height < _MIN_FIGURE_HEIGHT:
+                    continue
 
-            try:
-                img_path.write_bytes(img_bytes)
-                extracted.append({
-                    "page": page_num + 1,
-                    "index": img_idx,
-                    "path": str(img_path),
-                    "width": width,
-                    "height": height,
-                })
-            except OSError:
-                continue
+                img_bytes = base_image.get("image")
+                if not img_bytes:
+                    continue
+                ext = base_image.get("ext", "png")
+                filename = f"{stem}_fig_p{page_num + 1}_{img_idx}.{ext}"
+                img_path = figures_dir / filename
 
-    doc.close()
+                try:
+                    img_path.write_bytes(img_bytes)
+                    extracted.append({
+                        "page": page_num + 1,
+                        "index": img_idx,
+                        "path": str(img_path),
+                        "width": width,
+                        "height": height,
+                    })
+                except OSError:
+                    continue
+    finally:
+        doc.close()
 
     if extracted:
         print(f"Figures extracted: {len(extracted)} images saved to {figures_dir}")

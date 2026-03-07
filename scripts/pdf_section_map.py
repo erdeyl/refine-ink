@@ -490,11 +490,9 @@ def assign_dimensions(sections: list[dict]) -> dict:
 
     # references: reference sections as a single group
     if ref_sections:
-        start = ref_sections[0]["start_page"]
-        end = ref_sections[-1]["end_page"]
         assignments["references"] = [{
             "sections": [s["id"] for s in ref_sections],
-            "pages": _pages_str(start, end),
+            "pages": _merge_page_ranges(ref_sections),
         }]
 
     return assignments
@@ -556,9 +554,13 @@ def _build_cross_section_pairs(sections: list[dict]) -> list[dict]:
         for i in range(0, len(sections) - 1, 2):
             s1 = sections[i]
             s2 = sections[i + 1]
+            pages_list = [
+                _pages_str(s1["start_page"], s1["end_page"]),
+                _pages_str(s2["start_page"], s2["end_page"]),
+            ]
             pairs.append({
                 "sections": [s1["id"], s2["id"]],
-                "pages": _pages_str(s1["start_page"], s2["end_page"]),
+                "pages": ",".join(pages_list),
                 "pair_type": "sequential",
             })
         # Include last section if odd count — pair with first section

@@ -281,7 +281,7 @@ Report: "Phase 5: References verified. [N] verified, [N] unverifiable, [N] suspi
 
 **Skip this phase in single-workflow mode.**
 
-Launch the **synthesis-reviewer** agent (use Opus model for quality) to merge findings from all three workflows:
+Perform cross-workflow synthesis (inline, using Opus model for quality) to merge findings from all three workflows:
 
 1. **Load** all findings from `workflow_a/`, `workflow_b/`, `workflow_c/`, and `shared/`
 2. **Normalise locations** — Map Workflow A line numbers to page numbers using `<!-- page N -->` markers in the enhanced markdown

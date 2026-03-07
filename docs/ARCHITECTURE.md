@@ -11,26 +11,35 @@ This document describes the system architecture of refine-ink, including data fl
                               |   PDF Input File   |
                               +--------+----------+
                                        |
+                              [Phase 0: Setup]
+                              Create review directory,
+                              copy PDF to input/
+                                       |
                               [Phase 1: Conversion]
                                        |
                           +------------+------------+
                           |                         |
                    pdf_to_markdown.py        verify_conversion.py
-                          |                         |
-                          v                         v
-                  _converted.md              verification report
-                  _references.json           (PASS / WARN / FAIL)
+                   (--enhanced for triple)          |
+                          |                         v
+                          v                  verification report
+                  _converted.md              (PASS / WARN / FAIL)
+                  _references.json
                           |
                  [Phase 2: Chunking]
                           |
-                          v
-                   chunk_map.json
-                   (dimension-specific
-                    chunk assignments)
+      +-------------------+-------------------+
+      |                   |                   |
+  Workflow A          Workflow B          Workflow C
+  Enhanced MD         Full PDF            PDF page-chunks
+  chunk_map.json      (no chunking)       pdf_section_map.json
+      |                   |                   |
+      +-------------------+-------------------+
                           |
             +-------------+-------------+
             |             |             |
      [Phase 3: Parallel Analysis]       |
+     (7 agents x1 or x3 workflows)     |
             |             |             |
      +------+------+  +--+---+  +------+------+
      | math-logic  |  |notat.|  | exposition  |
@@ -52,25 +61,29 @@ This document describes the system architecture of refine-ink, including data fl
           verify_references.py
           CrossRef -> OpenAlex -> Semantic Scholar
                    |
-          [Phase 6: Confidence Iteration]
+          [Phase 6: Cross-Workflow Synthesis]
+          (triple-workflow mode only)
+          Merge, deduplicate, resolve conflicts
+                   |
+          [Phase 7: Confidence Iteration]
                    |
                    v
           confidence-checker (Opus)
           Re-analyse findings < 80%
                    |
-          [Phase 7: Synthesis]
+          [Phase 8: Synthesis]
                    |
                    v
           Draft referee report
                    |
-          [Phase 8: Precision Validation]
+          [Phase 9: Precision Validation]
                    |
                    v
           precision-validator (Opus)
           Tier A: 95% threshold (internal)
           Tier B: 85-90% threshold (external)
                    |
-          [Phase 9: Output]
+          [Phase 10: Output]
                    |
           +--------+--------+
           |        |        |
@@ -245,7 +258,7 @@ reviews/[paper_name]_[YYYY-MM-DD]/
 | `.claude/settings.local.json` | Local overrides (API keys, custom permissions) |
 | `.claude/rules/no-hallucination.md` | Anti-hallucination guardrails enforced across all agents |
 | `.claude/rules/review-standards.md` | Severity classification, correction format, writing standards |
-| `.claude/skills/review/SKILL.md` | The `/review` skill orchestrator (9-phase workflow) |
+| `.claude/skills/review/SKILL.md` | The `/review` skill orchestrator (11-phase workflow, Phases 0-10) |
 
 ---
 

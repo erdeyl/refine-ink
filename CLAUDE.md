@@ -57,6 +57,7 @@ The system uses parallelized multi-pass analysis with 12 specialized agents, eac
 - `scripts/verify_conversion.py` — Verify conversion fidelity
 - `scripts/verify_references.py` — Validate references via CrossRef/OpenAlex/Semantic Scholar
 - `scripts/md_to_html.py` — Convert review to styled HTML
+- `scripts/pdf_section_map.py` — Map PDF headings to page ranges for direct-PDF agents
 
 ## Setup
 

@@ -120,6 +120,13 @@ All corrections and commentary must meet the following quality bar:
 3. **Self-contained**: Each finding must be understandable on its own, without requiring the reader to look up other findings.
 4. **Contextualized**: Explain WHY the issue matters, not just WHAT the issue is. A finding that says "this number is wrong" without explaining the consequence is incomplete.
 
+### Construct Definition and Scope
+
+For any paper — empirical or review — verify that:
+1. **The central construct is operationally defined** before it is used in research questions, inclusion criteria, or empirical operationalisation. A systematic review of "digital trade rules" must define what counts as a digital trade rule; an empirical study of "fintech adoption" must define what counts as fintech.
+2. **The unit of analysis is consistent** across research questions. If RQ1 uses "provisions/clauses" and RQ3 uses "agreements," this inconsistency should be flagged.
+3. **Scope boundaries are explicit**. If the paper spans WTO rules, PTA chapters, data governance clauses, and standalone digital agreements, readers need to know which are in-scope and why.
+
 ### Figure and Visual Evidence Verification
 
 When the paper makes claims about figures, charts, or visual patterns:

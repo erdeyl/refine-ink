@@ -43,12 +43,20 @@ These are common methodological errors in social science research. Flag them whe
 26. **Series breaks and reclassifications**: Changes in data collection methodology creating artificial jumps or trends that contaminate time-series analysis
 27. **Universal qualifier overclaiming**: Using "uniformly," "always," "in every country," "without exception" when the data contain missing values, non-significant estimates, or exceptions
 
+### Systematic Review Pitfalls
+28. **Missing construct definition**: Failing to operationally define the central construct (e.g., "digital trade rules," "fintech adoption") before applying inclusion criteria, leaving the unit of analysis ambiguous across research questions
+29. **Overly narrow search string**: Hardwiring mandatory AND terms (e.g., "development" AND "effect") that mechanically exclude literature relevant to some research questions (e.g., studies addressing evolution or structure but not effects)
+30. **Cross-database field inconsistency**: Searching "anywhere in article" in Google Scholar while restricting to TITLE-ABS-KEY in Scopus/Web of Science, producing non-comparable retrieval across databases
+31. **Method taxonomy errors**: Conflating estimation techniques (PPML, OLS, MLE) with model specifications (gravity, structural) or identification designs (DID, RDD, IV) when classifying the reviewed literature's methods
+32. **Missing data extraction protocol**: No documented extraction form, coding rulebook, or borderline-case handling procedure, making the qualitative categorisation unauditable
+33. **Conflating visualisation type with analytical claim**: Interpreting a bibliometric keyword co-occurrence map (VOSviewer) as evidence of geopolitical network structure, or treating a citation network as evidence of intellectual influence
+
 ### Interpretation Errors
-28. **Confusing correlation with causation**: Drawing causal conclusions from associational evidence
-29. **Confusing statistical significance with economic significance**: A tiny but precisely estimated effect may be statistically significant but economically meaningless
-30. **Over-generalizing from LATE**: Interpreting a local average treatment effect as a general average treatment effect
-31. **Extrapolation beyond support**: Drawing conclusions for populations or settings not represented in the data
-32. **Ignoring external validity**: Findings from a specific context may not generalize
+34. **Confusing correlation with causation**: Drawing causal conclusions from associational evidence
+35. **Confusing statistical significance with economic significance**: A tiny but precisely estimated effect may be statistically significant but economically meaningless
+36. **Over-generalizing from LATE**: Interpreting a local average treatment effect as a general average treatment effect
+37. **Extrapolation beyond support**: Drawing conclusions for populations or settings not represented in the data
+38. **Ignoring external validity**: Findings from a specific context may not generalize
 
 ---
 

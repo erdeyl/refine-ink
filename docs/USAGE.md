@@ -12,7 +12,13 @@ Inside Claude Code, with the project directory as your working directory:
 /review path/to/paper.pdf
 ```
 
-That single command launches the full 9-phase review pipeline. The system handles everything automatically: conversion, chunking, parallel analysis, reference verification, confidence iteration, synthesis, precision validation, and output generation.
+That single command launches the full 11-phase review pipeline (Phases 0--10). The system handles everything automatically: setup, conversion, chunking, parallel analysis, literature search, reference verification, cross-workflow synthesis (in triple-workflow mode), confidence iteration, synthesis, precision validation, and output generation.
+
+For triple-workflow mode (three parallel analysis strategies for maximum coverage):
+
+```
+/review path/to/paper.pdf --triple
+```
 
 ---
 
@@ -85,7 +91,19 @@ The extracted references are verified through a three-tier API cascade:
 
 Each reference is classified as **Verified**, **Suspicious**, or **Unverifiable**. The references agent then interprets the results and flags hallucination patterns.
 
-### Phase 6 -- Confidence Iteration
+### Phase 6 -- Cross-Workflow Synthesis (triple-workflow mode only)
+
+In triple-workflow mode, findings from all three workflows (A: markdown chunks, B: full PDF, C: PDF page-range chunks) are merged:
+
+1. **Normalise locations** -- Map line numbers to page numbers using `<!-- page N -->` markers
+2. **Group** findings by semantic similarity (same page ±1, same dimension, evidence overlap ≥ 0.7)
+3. **Classify**: shared (2-3 workflows, confidence boosted), unique (re-verified), or contradicted (resolved against PDF)
+4. **Deduplicate** into a single unified findings list
+5. **Document provenance** in `agent_outputs/synthesis/dedup_map.json`
+
+This phase is skipped in single-workflow mode.
+
+### Phase 7 -- Confidence Iteration
 
 All findings with confidence below 80% are sent to the **confidence-checker** (Opus model), which:
 
@@ -96,11 +114,11 @@ All findings with confidence below 80% are sent to the **confidence-checker** (O
 
 Findings that remain below 50% confidence after two iterations are moved to a Low-Confidence appendix.
 
-### Phase 7 -- Synthesis
+### Phase 8 -- Synthesis
 
 All validated findings are aggregated and written as a coherent referee report in academic prose. The report follows the structure of a top-journal referee report, not a bullet-point checklist.
 
-### Phase 8 -- Precision Validation
+### Phase 9 -- Precision Validation
 
 The **precision-validator** (Opus model) re-checks every finding:
 
@@ -110,7 +128,7 @@ The **precision-validator** (Opus model) re-checks every finding:
 
 Findings that fail validation are downgraded to the Low-Confidence appendix.
 
-### Phase 9 -- Output Generation
+### Phase 10 -- Output Generation
 
 Final output is produced:
 

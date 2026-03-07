@@ -150,3 +150,84 @@ When the PDF conversion extracts figure images (via `--extract-figures`):
 2. The orchestrator instructs the agent to use the Read tool on each figure image to verify text claims about trends, values, or patterns visible in the figure
 3. Chunks tagged with `has_figures: true` receive special attention: the empirical agent must cross-check any text claims about visual evidence against the extracted images
 4. If figure extraction fails or produces no images, the empirical agent is instructed to flag unverifiable text-figure claims as a limitation
+
+---
+
+## Multi-Workflow Architecture
+
+The review system supports a triple-workflow architecture that runs three parallel analysis strategies on the same paper, then synthesizes their findings. This maximises coverage by exploiting complementary strengths of each input format.
+
+### Architecture Overview
+
+```
+                         ┌── Workflow A: Enhanced MD → Chunks → 7 agents ──┐
+Original PDF ──────────► ├── Workflow B: Full PDF (no chunking) → 7 agents ─┼──► Synthesis → Final Review
+                         └── Workflow C: PDF page-chunks → 7 agents ────────┘
+                         └── Shared: literature + references agents ────────┘
+```
+
+### Workflow A — Enhanced Markdown Chunks
+
+This is the existing workflow, enhanced with page boundary markers (`<!-- page N -->`) for post-synthesis location mapping.
+
+- **Input**: PDF → `pdf_to_markdown.py --enhanced` → heading-based chunks
+- **Chunk sizes**: As described in the dimension-specific sections above
+- **Strengths**: Best text fidelity for prose analysis, clean markdown tables, paragraph-level granularity
+- **Weaknesses**: Conversion can garble complex tables, lose equation formatting, mishandle multi-column layouts
+
+### Workflow B — Full PDF, No Chunking
+
+Agents read the entire original PDF directly via the `Read` tool's `pages` parameter, with no markdown conversion step.
+
+- **Input**: Original PDF, read in overlapping segments
+- **Segment strategy**:
+  - Papers ≤ 20 pages: single `Read(pages="1-20")`
+  - Papers 21--40 pages: two overlapping reads, e.g., `Read(pages="1-20")` then `Read(pages="15-40")` (5-page overlap)
+  - Papers > 40 pages: three or more overlapping reads with 5-page overlaps
+- **Attention management**: Agents receive explicit instructions to "work through the paper section by section systematically" to counteract attention dilution on large reads
+- **Strengths**: Zero conversion loss — agents see exactly what humans see (tables, equations, figures, formatting)
+- **Weaknesses**: Attention dilution on long documents; no chunk-level focus; figures may not be as easily compared with text
+
+### Workflow C — PDF Page-Range Chunks
+
+Agents read PDF page ranges corresponding to logical sections, as determined by `pdf_section_map.py`.
+
+- **Input**: Original PDF + `pdf_section_map.json` (heading → page range mappings)
+- **Chunk sizes**: Determined by section boundaries in the PDF, grouped to approximate the dimension-specific targets
+- **Strengths**: Combines PDF fidelity with focused analysis; agents see original tables and figures in context
+- **Weaknesses**: Section detection relies on font-size heuristics, which can fail on non-standard layouts; page boundaries may split sentences
+
+### Prompt Differences by Workflow
+
+| Aspect | Workflow A | Workflow B | Workflow C |
+|--------|-----------|-----------|-----------|
+| Input format | MD file + line ranges | PDF + page segments | PDF + page ranges |
+| Location refs | Line numbers + section | Page numbers + section | Page numbers + section |
+| Evidence quotes | Markdown text | PDF-rendered text | PDF-rendered text |
+| Table/figure handling | MD tables + extracted images | Direct PDF rendering | Direct PDF rendering |
+| Attention strategy | Focused chunks | Full-doc systematic scan | Focused page-range chunks |
+
+### Cross-Workflow Synthesis
+
+After all three workflows complete, a synthesis agent (Opus) merges the three finding sets:
+
+1. **Normalise locations** — Map Workflow A line numbers to page numbers using `<!-- page N -->` markers
+2. **Group findings** — Cluster by semantic similarity (same page ±1, same agent type, evidence text overlap ≥ 0.7)
+3. **Classify groups**:
+   - **Shared** (found by 2-3 workflows): Take highest-confidence version; confidence boost +5
+   - **Unique** (found by 1 workflow only): Re-verify against original PDF; include if confirmed, else demote to appendix
+   - **Contradicted** (conflicting assessments): Resolve by re-reading original PDF
+4. **Deduplicate** — Produce single unified findings list
+5. **Document provenance** — Record which workflow(s) caught each finding in `synthesis/dedup_map.json`
+
+### Trade-offs
+
+| Factor | Single Workflow | Triple Workflow |
+|--------|----------------|-----------------|
+| Wall-clock time | ~30 min (article) | ~60 min (article) |
+| Agent count | 7-9 | 21-23 |
+| Finding coverage | Baseline | +15-25% estimated |
+| False positives | Baseline | Lower (cross-validation) |
+| Compute cost | 1× | ~3× |
+
+The triple-workflow mode is recommended for final-submission reviews where maximum coverage justifies the additional compute. For draft-stage reviews, the single-workflow (Workflow A) mode remains the default.

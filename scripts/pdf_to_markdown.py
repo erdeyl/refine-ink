@@ -8,6 +8,12 @@ reference list into a companion JSON file.
 
 Usage:
     python pdf_to_markdown.py input.pdf [--output-dir DIR]
+    python pdf_to_markdown.py input.pdf --enhanced [--output-dir DIR]
+
+The --enhanced flag enables:
+    - Page boundary markers (<!-- page N -->) for PDF-MD location mapping
+    - Improved table extraction using pymupdf's structured table finder
+    - Multi-column layout detection and logging
 
 Outputs:
     <filename>_converted.md      - Full Markdown text
@@ -326,6 +332,192 @@ def extract_figures(pdf_path: Path, output_dir: Path) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Enhanced conversion helpers
+# ---------------------------------------------------------------------------
+
+def _detect_multi_column(pdf_path: Path) -> list[dict]:
+    """Detect pages with multi-column layouts by analyzing text block x-coordinates.
+
+    Returns a list of dicts: {page, columns, gap_positions}.
+    Only reports pages with 2+ detected columns.
+    """
+    try:
+        import pymupdf  # type: ignore
+    except ImportError:
+        return []
+
+    multi_col_pages: list[dict] = []
+    try:
+        doc = pymupdf.open(str(pdf_path))
+    except Exception:
+        return []
+
+    try:
+        for page_num in range(doc.page_count):
+            page = doc[page_num]
+            page_width = page.rect.width
+            page_dict = page.get_text("dict", flags=0)
+
+            # Collect x-coordinates of text block left edges
+            x_starts: list[float] = []
+            for block in page_dict.get("blocks", []):
+                if block.get("type") == 0:  # text block
+                    bbox = block.get("bbox", [0, 0, 0, 0])
+                    has_text = any(
+                        span.get("text", "").strip()
+                        for line in block.get("lines", [])
+                        for span in line.get("spans", [])
+                    )
+                    if has_text:
+                        x_starts.append(bbox[0])
+
+            if len(x_starts) < 4:
+                continue
+
+            # Cluster x_starts to detect columns
+            # Sort and find gaps > 15% of page width
+            x_sorted = sorted(set(round(x, 0) for x in x_starts))
+            if len(x_sorted) < 2:
+                continue
+
+            gaps: list[float] = []
+            gap_threshold = page_width * 0.15
+            clusters: list[list[float]] = [[x_sorted[0]]]
+
+            for i in range(1, len(x_sorted)):
+                if x_sorted[i] - x_sorted[i - 1] > gap_threshold:
+                    gaps.append((x_sorted[i - 1] + x_sorted[i]) / 2)
+                    clusters.append([x_sorted[i]])
+                else:
+                    clusters[-1].append(x_sorted[i])
+
+            if len(clusters) >= 2:
+                multi_col_pages.append({
+                    "page": page_num + 1,
+                    "columns": len(clusters),
+                    "gap_positions": [round(g, 1) for g in gaps],
+                })
+    finally:
+        doc.close()
+
+    return multi_col_pages
+
+
+def _extract_table_markdown_from_page(page) -> list[str]:
+    """Extract tables from a pymupdf page object using the structured table finder.
+
+    Returns a list of markdown-formatted table strings.
+    """
+    tables_md: list[str] = []
+    try:
+        table_finder = page.find_tables()
+    except Exception:
+        return []
+
+    for table in table_finder.tables:
+        try:
+            data = table.extract()
+            if not data or len(data) < 2:
+                continue
+
+            # Build markdown table
+            lines: list[str] = []
+            # Header row
+            header = data[0]
+            header_cells = [str(c).strip() if c else "" for c in header]
+            lines.append("| " + " | ".join(header_cells) + " |")
+            # Separator
+            lines.append("| " + " | ".join("---" for _ in header_cells) + " |")
+            # Data rows
+            for row in data[1:]:
+                cells = [str(c).strip() if c else "" for c in row]
+                # Pad or trim to match header column count
+                while len(cells) < len(header_cells):
+                    cells.append("")
+                cells = cells[:len(header_cells)]
+                lines.append("| " + " | ".join(cells) + " |")
+
+            tables_md.append("\n".join(lines))
+        except Exception:
+            continue
+
+    return tables_md
+
+
+def _convert_page_by_page(pdf_path: Path) -> tuple[str, dict]:
+    """Convert PDF page-by-page, inserting <!-- page N --> markers.
+
+    Returns (md_text, stats_dict) where stats_dict includes
+    page_markers_count and multi_column_pages.
+    """
+    try:
+        import pymupdf4llm  # type: ignore
+        import pymupdf       # type: ignore
+    except ImportError as exc:
+        raise ImportError(
+            f"Required package not installed: {exc}\n"
+            "Install with:  pip install pymupdf4llm"
+        )
+
+    doc = pymupdf.open(str(pdf_path))
+    try:
+        page_count = doc.page_count
+        pages_md: list[str] = []
+        table_improvements = 0
+
+        for page_num in range(page_count):
+            # Convert single page
+            try:
+                page_md: str = pymupdf4llm.to_markdown(
+                    str(pdf_path),
+                    pages=[page_num],
+                    show_progress=False,
+                )
+            except Exception as exc:
+                print(f"  Warning: page {page_num + 1} conversion failed: {exc}", file=sys.stderr)
+                page_md = f"[Page {page_num + 1} conversion failed]\n"
+
+            # Try to improve tables on this page using the already-open doc
+            page = doc[page_num]
+            structured_tables = _extract_table_markdown_from_page(page)
+            if structured_tables:
+                md_tables_in_page = re.findall(
+                    r"(?:^\|.+\|$\n)+",
+                    page_md,
+                    re.MULTILINE,
+                )
+                # Only attempt replacement when counts match 1:1 to avoid
+                # replacing a garbled table with a structured table from a
+                # different physical table on the same page.
+                if len(md_tables_in_page) == len(structured_tables):
+                    for md_table, struct_table in zip(md_tables_in_page, structured_tables):
+                        md_cols = md_table.split("\n")[0].count("|") - 1
+                        struct_cols = struct_table.split("\n")[0].count("|") - 1
+                        if md_cols != struct_cols and struct_cols > 1:
+                            page_md = page_md.replace(md_table.rstrip("\n"), struct_table)
+                            table_improvements += 1
+
+            # Insert page marker
+            pages_md.append(f"<!-- page {page_num + 1} -->\n\n{page_md}")
+    finally:
+        doc.close()
+
+    md_text = "\n\n".join(pages_md)
+
+    # Detect multi-column pages
+    multi_col = _detect_multi_column(pdf_path)
+
+    stats = {
+        "page_markers": page_count,
+        "table_improvements": table_improvements,
+        "multi_column_pages": len(multi_col),
+        "multi_column_details": multi_col,
+    }
+
+    return md_text, stats
+
+
+# ---------------------------------------------------------------------------
 # Conversion statistics
 # ---------------------------------------------------------------------------
 
@@ -347,13 +539,18 @@ def _compute_stats(md_text: str, page_count: int) -> dict:
 
 
 def _print_stats(stats: dict) -> None:
-    print("\n--- Conversion Statistics ---")
+    mode = stats.get("mode", "standard")
+    print(f"\n--- Conversion Statistics ({mode}) ---")
     print(f"  Pages:    {stats['pages']}")
     print(f"  Words:    {stats['words']}")
     print(f"  Sections: {stats['sections']}")
     print(f"  Tables:   {stats['tables']}")
     if "figures" in stats:
         print(f"  Figures:  {stats['figures']}")
+    if mode == "enhanced":
+        print(f"  Page markers:      {stats.get('page_markers', 0)}")
+        print(f"  Tables improved:   {stats.get('table_improvements', 0)}")
+        print(f"  Multi-col pages:   {stats.get('multi_column_pages', 0)}")
     print("-----------------------------\n")
 
 
@@ -365,8 +562,13 @@ def convert_pdf(
     pdf_path: Path,
     output_dir: Optional[Path] = None,
     do_extract_figures: bool = False,
+    enhanced: bool = False,
 ) -> int:
-    """Convert a PDF to Markdown + references JSON. Returns an exit code."""
+    """Convert a PDF to Markdown + references JSON. Returns an exit code.
+
+    When enhanced=True, uses page-by-page conversion with page markers,
+    improved table extraction, and multi-column detection.
+    """
     # ------------------------------------------------------------------
     # 1. Validate input
     # ------------------------------------------------------------------
@@ -397,42 +599,72 @@ def convert_pdf(
     refs_path = output_dir / f"{stem}_references.json"
 
     # ------------------------------------------------------------------
-    # 3. Convert PDF -> Markdown via pymupdf4llm
+    # 3. Convert PDF -> Markdown
     # ------------------------------------------------------------------
-    try:
-        import pymupdf4llm  # type: ignore
-        import pymupdf       # type: ignore  (fitz)
-    except ImportError as exc:
-        print(
-            f"Error: required package not installed: {exc}\n"
-            "Install with:  pip install pymupdf4llm",
-            file=sys.stderr,
-        )
-        return EXIT_CONVERSION_ERROR
+    enhanced_stats: dict = {}
 
-    print(f"Converting: {pdf_path}")
+    if enhanced:
+        # Enhanced mode: page-by-page with markers + table improvement
+        print(f"Converting (enhanced mode): {pdf_path}")
+        try:
+            md_text, enhanced_stats = _convert_page_by_page(pdf_path)
+        except ImportError as exc:
+            print(
+                f"Error: required package not installed: {exc}\n"
+                "Install with:  pip install pymupdf4llm",
+                file=sys.stderr,
+            )
+            return EXIT_CONVERSION_ERROR
+        except Exception as exc:
+            print(f"Error during enhanced PDF conversion: {exc}", file=sys.stderr)
+            return EXIT_CONVERSION_ERROR
 
-    try:
-        md_text: str = pymupdf4llm.to_markdown(
-            str(pdf_path),
-            show_progress=False,
-        )
-    except Exception as exc:
-        print(f"Error during PDF conversion: {exc}", file=sys.stderr)
-        return EXIT_CONVERSION_ERROR
+        page_count = enhanced_stats.get("page_markers", 0)
 
-    # Get page count from PyMuPDF directly
-    try:
-        doc = pymupdf.open(str(pdf_path))
-        page_count = doc.page_count
-        doc.close()
-    except Exception:
-        page_count = 0
+        # Log multi-column detection
+        if enhanced_stats.get("multi_column_pages", 0) > 0:
+            print(f"\n  Multi-column layout detected on {enhanced_stats['multi_column_pages']} page(s):")
+            for mc in enhanced_stats.get("multi_column_details", []):
+                print(f"    Page {mc['page']}: {mc['columns']} columns")
+
+        if enhanced_stats.get("table_improvements", 0) > 0:
+            print(f"  Tables improved: {enhanced_stats['table_improvements']} table(s) replaced with structured extraction")
+    else:
+        # Standard mode: whole-document conversion
+        try:
+            import pymupdf4llm  # type: ignore
+            import pymupdf       # type: ignore  (fitz)
+        except ImportError as exc:
+            print(
+                f"Error: required package not installed: {exc}\n"
+                "Install with:  pip install pymupdf4llm",
+                file=sys.stderr,
+            )
+            return EXIT_CONVERSION_ERROR
+
+        print(f"Converting: {pdf_path}")
+
+        try:
+            md_text: str = pymupdf4llm.to_markdown(
+                str(pdf_path),
+                show_progress=False,
+            )
+        except Exception as exc:
+            print(f"Error during PDF conversion: {exc}", file=sys.stderr)
+            return EXIT_CONVERSION_ERROR
+
+        # Get page count from PyMuPDF directly
+        try:
+            doc = pymupdf.open(str(pdf_path))
+            page_count = doc.page_count
+            doc.close()
+        except Exception:
+            page_count = 0
 
     # ------------------------------------------------------------------
     # 4. Post-process: light clean-up
     # ------------------------------------------------------------------
-    # Collapse runs of 3+ blank lines into 2
+    # Collapse runs of 3+ blank lines into 2 (but preserve page markers)
     md_text = re.sub(r"\n{4,}", "\n\n\n", md_text)
     # Strip trailing whitespace on each line
     md_text = "\n".join(line.rstrip() for line in md_text.splitlines()) + "\n"
@@ -469,10 +701,29 @@ def convert_pdf(
         figures = extract_figures(pdf_path, output_dir)
 
     # ------------------------------------------------------------------
-    # 8. Print statistics
+    # 8. Write enhanced stats (if applicable)
+    # ------------------------------------------------------------------
+    if enhanced and enhanced_stats:
+        enhanced_stats_path = output_dir / f"{stem}_enhanced_stats.json"
+        try:
+            enhanced_stats_path.write_text(
+                json.dumps(enhanced_stats, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            print(f"Enhanced stats saved: {enhanced_stats_path}")
+        except OSError:
+            pass  # non-critical
+
+    # ------------------------------------------------------------------
+    # 9. Print statistics
     # ------------------------------------------------------------------
     stats = _compute_stats(md_text, page_count)
     stats["figures"] = len(figures)
+    if enhanced:
+        stats["mode"] = "enhanced"
+        stats["page_markers"] = enhanced_stats.get("page_markers", 0)
+        stats["table_improvements"] = enhanced_stats.get("table_improvements", 0)
+        stats["multi_column_pages"] = enhanced_stats.get("multi_column_pages", 0)
     _print_stats(stats)
 
     return EXIT_OK
@@ -503,9 +754,20 @@ def main() -> int:
         default=False,
         help="Extract embedded figure images from the PDF into a figures/ subdirectory.",
     )
+    parser.add_argument(
+        "--enhanced",
+        action="store_true",
+        default=False,
+        help="Enable enhanced conversion: page markers, improved table extraction, multi-column detection.",
+    )
 
     args = parser.parse_args()
-    return convert_pdf(args.pdf, args.output_dir, do_extract_figures=args.extract_figures)
+    return convert_pdf(
+        args.pdf,
+        args.output_dir,
+        do_extract_figures=args.extract_figures,
+        enhanced=args.enhanced,
+    )
 
 
 if __name__ == "__main__":

@@ -9,7 +9,12 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Task, WebSearch, WebFetch, T
 
 You are conducting a rigorous, multi-pass scientific paper review that produces a referee report matching the quality expectations of top-ranked academic journals (AER, QJE, Econometrica, JFE, REStat, JOLE, JDE).
 
-**Input:** `$ARGUMENTS` — optional path to a PDF file. If omitted, the user should upload/attach a PDF in the conversation before invoking `/review`.
+**Input:** `$ARGUMENTS` — optional path to a PDF file, optionally followed by `--triple` to enable triple-workflow mode. If omitted, the user should upload/attach a PDF in the conversation before invoking `/review`.
+
+**Mode selection:**
+- `/review paper.pdf` — single-workflow mode (default, faster)
+- `/review paper.pdf --triple` — triple-workflow mode (3× compute, +15-25% finding coverage)
+- If `$ARGUMENTS` contains `--triple`, enable triple-workflow mode and strip the flag from the PDF path.
 
 ## CRITICAL RULES
 
@@ -95,7 +100,7 @@ You are conducting a rigorous, multi-pass scientific paper review that produces 
    - **Document type**: Article (~5-40 pages) or PhD dissertation (~100-200 pages)
    - **Word count**: from the conversion stats
 8. Report: "Paper: [title], Language: [lang], Type: [type], [N] words, [N] pages, [N] figures extracted"
-9. Estimate completion time based on the time table in the plan.
+9. Estimate completion time: ~30 min for single-workflow articles, ~60 min for triple-workflow articles, ~60-90 min for dissertations.
 
 ### Phase 2 — Chunking
 

@@ -56,6 +56,8 @@ def _mode_body_size(blocks: list[dict]) -> float:
 
 def _extract_blocks(pdf_path: str) -> list[dict]:
     """Extract per-span block data from the PDF."""
+    if pymupdf is None:
+        raise ImportError("Missing dependency 'pymupdf'. Install with: pip install pymupdf")
     doc = pymupdf.open(pdf_path)
     blocks = []
     try:
@@ -167,6 +169,9 @@ def detect_page_content(doc, page_num: int) -> dict:
 
     Returns: {has_tables, has_figures, has_equations}
     """
+    if page_num < 1 or page_num > doc.page_count:
+        return {"has_tables": False, "has_figures": False, "has_equations": False}
+
     page = doc[page_num - 1]  # 0-indexed in pymupdf
 
     # Tables
@@ -194,26 +199,59 @@ def detect_page_content(doc, page_num: int) -> dict:
     except Exception:
         pass
 
-    # Equations (heuristic: look for math-like patterns in text)
+    # Equations (heuristic: require multiple math indicators to reduce
+    # false positives from isolated Greek letters in statistical notation)
     has_equations = False
     text = page.get_text("text")
-    equation_patterns = [
-        r"[\u2200-\u22FF]",           # Mathematical operators
-        r"[\u0391-\u03C9]",           # Greek letters
+    math_score = 0
+    # Strong indicators (each sufficient on its own)
+    strong_patterns = [
+        r"[\u2200-\u22FF]",           # Mathematical operators (∀∃∅∈∉⊂⊃∪∩ etc.)
         r"\$[^$]+\$",                 # LaTeX inline math
         r"\\\(.*?\\\)",               # LaTeX delimited math
-        r"∑|∏|∫|∂|∇|√|±|≤|≥|≠|→|∞",  # Common math symbols
+        r"∑|∏|∫|∂|∇|√",              # Summation, product, integral, partial, nabla, sqrt
     ]
-    for pattern in equation_patterns:
+    for pattern in strong_patterns:
         if re.search(pattern, text):
-            has_equations = True
+            math_score += 2
             break
+    # Weak indicators (need ≥2 together to count)
+    weak_patterns = [
+        (r"[\u0391-\u03C9]", 1),     # Greek letters (common in prose too)
+        (r"[±≤≥≠≈∝∞]", 1),          # Comparison/relation symbols
+        (r"(?:^|[\s(])[\^_]\{", 1),  # Superscript/subscript notation
+    ]
+    for pattern, score in weak_patterns:
+        if re.search(pattern, text):
+            math_score += score
+    has_equations = math_score >= 2
 
     return {
         "has_tables": has_tables,
         "has_figures": has_figures,
         "has_equations": has_equations,
     }
+
+
+def detect_section_content(doc, start_page: int, end_page: int) -> dict:
+    """Detect content types across all pages in a section.
+
+    Args:
+        doc: An open pymupdf document.
+        start_page: 1-indexed start page.
+        end_page: 1-indexed end page (inclusive).
+
+    Returns: {has_tables, has_figures, has_equations}
+    """
+    result = {"has_tables": False, "has_figures": False, "has_equations": False}
+    for p in range(start_page, end_page + 1):
+        content = detect_page_content(doc, p)
+        result["has_tables"] = result["has_tables"] or content["has_tables"]
+        result["has_figures"] = result["has_figures"] or content["has_figures"]
+        result["has_equations"] = result["has_equations"] or content["has_equations"]
+        if result["has_tables"] and result["has_figures"] and result["has_equations"]:
+            break  # All flags set, no need to check more pages
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +286,7 @@ def build_section_map(
 
     if not headings:
         # No headings detected — treat entire document as one section
-        content = detect_page_content(doc, 1)
+        content = detect_section_content(doc, 1, total_pages)
         sections.append({
             "id": "s1",
             "heading": "Full Document",
@@ -280,8 +318,8 @@ def build_section_map(
             ))
             is_abstract = "abstract" in heading_lower
 
-            # Detect content for the section (sample first page)
-            content = detect_page_content(doc, start_page)
+            # Detect content across all pages in the section
+            content = detect_section_content(doc, start_page, end_page)
 
             sections.append({
                 "id": f"s{i + 1}",
@@ -341,14 +379,12 @@ def _pages_str(start: int, end: int) -> str:
 def _group_sections(
     sections: list[dict],
     target_pages: int,
-    filter_fn=None,
 ) -> list[dict]:
     """Group sections into chunks of approximately target_pages pages.
 
     Returns list of {sections: [ids], pages: "start-end"} dicts.
     """
-    eligible = [s for s in sections if (filter_fn is None or filter_fn(s))]
-    if not eligible:
+    if not sections:
         return []
 
     groups: list[dict] = []
@@ -357,7 +393,7 @@ def _group_sections(
     current_end = 0
     current_pages = 0
 
-    for s in eligible:
+    for s in sections:
         if current_pages > 0 and current_pages + s["pages"] > target_pages * 1.5:
             # Flush current group
             groups.append({

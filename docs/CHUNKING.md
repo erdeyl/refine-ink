@@ -162,7 +162,7 @@ The review system supports a triple-workflow architecture that runs three parall
 ```
                          ┌── Workflow A: Enhanced MD → Chunks → 7 agents ──┐
 Original PDF ──────────► ├── Workflow B: Full PDF (no chunking) → 7 agents ─┼──► Synthesis → Final Review
-                         └── Workflow C: PDF page-chunks → 7 agents ────────┘
+                         ├── Workflow C: PDF page-chunks → 7 agents ────────┤
                          └── Shared: literature + references agents ────────┘
 ```
 

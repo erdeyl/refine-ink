@@ -659,8 +659,8 @@ def convert_pdf(
     # ------------------------------------------------------------------
     # 4. Post-process: light clean-up
     # ------------------------------------------------------------------
-    # Collapse runs of 3+ blank lines into 2 (but preserve page markers)
-    md_text = re.sub(r"\n{4,}", "\n\n\n", md_text)
+    # Collapse runs of 3+ blank lines into 2, but preserve spacing around page markers
+    md_text = re.sub(r"\n{4,}(?!<!-- page )", "\n\n\n", md_text)
     # Strip trailing whitespace on each line
     md_text = "\n".join(line.rstrip() for line in md_text.splitlines()) + "\n"
 

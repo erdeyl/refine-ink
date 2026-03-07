@@ -335,70 +335,61 @@ def extract_figures(pdf_path: Path, output_dir: Path) -> list[dict]:
 # Enhanced conversion helpers
 # ---------------------------------------------------------------------------
 
-def _detect_multi_column(pdf_path: Path) -> list[dict]:
+def _detect_multi_column(doc) -> list[dict]:
     """Detect pages with multi-column layouts by analyzing text block x-coordinates.
+
+    Args:
+        doc: An open pymupdf document.
 
     Returns a list of dicts: {page, columns, gap_positions}.
     Only reports pages with 2+ detected columns.
     """
-    try:
-        import pymupdf  # type: ignore
-    except ImportError:
-        return []
-
     multi_col_pages: list[dict] = []
-    try:
-        doc = pymupdf.open(str(pdf_path))
-    except Exception:
-        return []
 
-    try:
-        for page_num in range(doc.page_count):
-            page = doc[page_num]
-            page_width = page.rect.width
-            page_dict = page.get_text("dict", flags=0)
+    for page_num in range(doc.page_count):
+        page = doc[page_num]
+        page_width = page.rect.width
+        page_dict = page.get_text("dict", flags=0)
 
-            # Collect x-coordinates of text block left edges
-            x_starts: list[float] = []
-            for block in page_dict.get("blocks", []):
-                if block.get("type") == 0:  # text block
-                    bbox = block.get("bbox", [0, 0, 0, 0])
-                    has_text = any(
-                        span.get("text", "").strip()
-                        for line in block.get("lines", [])
-                        for span in line.get("spans", [])
-                    )
-                    if has_text:
-                        x_starts.append(bbox[0])
+        # Collect x-coordinates of text block left edges
+        x_starts: list[float] = []
+        for block in page_dict.get("blocks", []):
+            if block.get("type") == 0:  # text block
+                bbox = block.get("bbox", [0, 0, 0, 0])
+                has_text = any(
+                    span.get("text", "").strip()
+                    for line in block.get("lines", [])
+                    for span in line.get("spans", [])
+                )
+                if has_text:
+                    x_starts.append(bbox[0])
 
-            if len(x_starts) < 4:
-                continue
+        if len(x_starts) < 4:
+            continue
 
-            # Cluster x_starts to detect columns
-            # Sort and find gaps > 15% of page width
-            x_sorted = sorted(set(round(x, 0) for x in x_starts))
-            if len(x_sorted) < 2:
-                continue
+        # Cluster x_starts to detect columns
+        # Sort and find gaps > 15% of page width
+        x_sorted = sorted(set(round(x, 0) for x in x_starts))
+        if len(x_sorted) < 2:
+            continue
 
-            gaps: list[float] = []
-            gap_threshold = page_width * 0.15
-            clusters: list[list[float]] = [[x_sorted[0]]]
+        gaps: list[float] = []
+        gap_threshold = page_width * 0.15
+        clusters: list[list[float]] = [[x_sorted[0]]]
 
-            for i in range(1, len(x_sorted)):
-                if x_sorted[i] - x_sorted[i - 1] > gap_threshold:
-                    gaps.append((x_sorted[i - 1] + x_sorted[i]) / 2)
-                    clusters.append([x_sorted[i]])
-                else:
-                    clusters[-1].append(x_sorted[i])
+        for i in range(1, len(x_sorted)):
+            if x_sorted[i] - x_sorted[i - 1] > gap_threshold:
+                gaps.append((x_sorted[i - 1] + x_sorted[i]) / 2)
+                clusters.append([x_sorted[i]])
+            else:
+                clusters[-1].append(x_sorted[i])
 
-            if len(clusters) >= 2:
-                multi_col_pages.append({
-                    "page": page_num + 1,
-                    "columns": len(clusters),
-                    "gap_positions": [round(g, 1) for g in gaps],
-                })
-    finally:
-        doc.close()
+        if len(clusters) >= 2:
+            multi_col_pages.append({
+                "page": page_num + 1,
+                "columns": len(clusters),
+                "gap_positions": [round(g, 1) for g in gaps],
+            })
 
     return multi_col_pages
 
@@ -462,6 +453,10 @@ def _convert_page_by_page(pdf_path: Path) -> tuple[str, dict]:
     doc = pymupdf.open(str(pdf_path))
     try:
         page_count = doc.page_count
+        if page_count == 0:
+            print("Warning: PDF has 0 pages", file=sys.stderr)
+            return "", {"page_markers": 0, "table_improvements": 0,
+                        "multi_column_pages": 0, "multi_column_details": []}
         pages_md: list[str] = []
         table_improvements = 0
 
@@ -482,7 +477,7 @@ def _convert_page_by_page(pdf_path: Path) -> tuple[str, dict]:
             structured_tables = _extract_table_markdown_from_page(page)
             if structured_tables:
                 md_tables_in_page = re.findall(
-                    r"(?:^\|.+\|$\n)+",
+                    r"(?:^\|.+\|$\n?)+",
                     page_md,
                     re.MULTILINE,
                 )
@@ -494,18 +489,18 @@ def _convert_page_by_page(pdf_path: Path) -> tuple[str, dict]:
                         md_cols = md_table.split("\n")[0].count("|") - 1
                         struct_cols = struct_table.split("\n")[0].count("|") - 1
                         if md_cols != struct_cols and struct_cols > 1:
-                            page_md = page_md.replace(md_table.rstrip("\n"), struct_table)
+                            page_md = page_md.replace(md_table.rstrip("\n"), struct_table, 1)
                             table_improvements += 1
 
             # Insert page marker
             pages_md.append(f"<!-- page {page_num + 1} -->\n\n{page_md}")
+
+        # Detect multi-column pages (before doc is closed)
+        multi_col = _detect_multi_column(doc)
     finally:
         doc.close()
 
     md_text = "\n\n".join(pages_md)
-
-    # Detect multi-column pages
-    multi_col = _detect_multi_column(pdf_path)
 
     stats = {
         "page_markers": page_count,

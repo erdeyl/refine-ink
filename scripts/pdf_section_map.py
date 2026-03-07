@@ -141,6 +141,9 @@ def detect_headings(pdf_path: str) -> list[dict]:
             seen.add(norm)
             unique.append(h)
 
+    # Sort by page number to ensure correct ordering after dedup
+    unique.sort(key=lambda h: h["page"])
+
     # Infer heading levels from font size tiers
     if unique:
         sizes = sorted(set(h["font_size"] for h in unique), reverse=True)
@@ -234,6 +237,13 @@ def build_section_map(
     Returns a dict with:
         total_pages, sections[], dimension_assignments{}
     """
+    if total_pages == 0:
+        return {
+            "total_pages": 0,
+            "sections": [],
+            "dimension_assignments": {},
+        }
+
     sections: list[dict] = []
 
     if not headings:
@@ -482,6 +492,15 @@ def _build_cross_section_pairs(sections: list[dict]) -> list[dict]:
             pairs.append({
                 "sections": [s1["id"], s2["id"]],
                 "pages": _pages_str(s1["start_page"], s2["end_page"]),
+                "pair_type": "sequential",
+            })
+        # Include last section if odd count
+        if len(sections) % 2 == 1:
+            last = sections[-1]
+            prev = sections[-2]
+            pairs.append({
+                "sections": [prev["id"], last["id"]],
+                "pages": _pages_str(prev["start_page"], last["end_page"]),
                 "pair_type": "sequential",
             })
 

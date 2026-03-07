@@ -218,7 +218,7 @@ After all three workflows complete, a synthesis agent (Opus) merges the three fi
    - **Unique** (found by 1 workflow only): Re-verify against original PDF; include if confirmed, else demote to appendix
    - **Contradicted** (conflicting assessments): Resolve by re-reading original PDF
 4. **Deduplicate** — Produce single unified findings list
-5. **Document provenance** — Record which workflow(s) caught each finding in `synthesis/dedup_map.json`
+5. **Document provenance** — Record which workflow(s) caught each finding in `agent_outputs/synthesis/dedup_map.json`
 
 ### Trade-offs
 

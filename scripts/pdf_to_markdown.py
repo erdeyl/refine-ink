@@ -651,8 +651,10 @@ def convert_pdf(
         # Get page count from PyMuPDF directly
         try:
             doc = pymupdf.open(str(pdf_path))
-            page_count = doc.page_count
-            doc.close()
+            try:
+                page_count = doc.page_count
+            finally:
+                doc.close()
         except Exception:
             page_count = 0
 

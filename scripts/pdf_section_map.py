@@ -37,6 +37,11 @@ EXIT_INPUT_ERROR = 1
 EXIT_DEPENDENCY_ERROR = 2
 EXIT_IO_ERROR = 3
 
+# Minimum dimensions (pixels) to consider an image a figure vs an icon/logo.
+# Must stay in sync with _MIN_FIGURE_WIDTH/_MIN_FIGURE_HEIGHT in pdf_to_markdown.py.
+_MIN_FIGURE_WIDTH = 150
+_MIN_FIGURE_HEIGHT = 100
+
 
 # ---------------------------------------------------------------------------
 # PDF analysis helpers
@@ -191,7 +196,7 @@ def detect_page_content(doc, page_num: int) -> dict:
                 base_image = doc.extract_image(img_info[0])
                 w = base_image.get("width", 0)
                 h = base_image.get("height", 0)
-                if w >= 150 and h >= 100:
+                if w >= _MIN_FIGURE_WIDTH and h >= _MIN_FIGURE_HEIGHT:
                     has_figures = True
                     break
             except Exception:
@@ -376,6 +381,34 @@ def _pages_str(start: int, end: int) -> str:
     return f"{start}-{end}"
 
 
+def _merge_page_ranges(sections: list[dict]) -> str:
+    """Merge contiguous section page ranges; produce comma-separated strings for gaps.
+
+    Sections on pages 5-8 and 20-25 yield "5-8,20-25" instead of "5-25",
+    avoiding the inclusion of irrelevant intermediate pages.
+    """
+    if not sections:
+        return ""
+
+    sorted_secs = sorted(sections, key=lambda s: s["start_page"])
+    ranges: list[tuple[int, int]] = []
+    cur_start = sorted_secs[0]["start_page"]
+    cur_end = sorted_secs[0]["end_page"]
+
+    for s in sorted_secs[1:]:
+        if s["start_page"] <= cur_end + 1:
+            # Contiguous or overlapping — extend
+            cur_end = max(cur_end, s["end_page"])
+        else:
+            # Gap — flush and start new range
+            ranges.append((cur_start, cur_end))
+            cur_start = s["start_page"]
+            cur_end = s["end_page"]
+
+    ranges.append((cur_start, cur_end))
+    return ",".join(_pages_str(start, end) for start, end in ranges)
+
+
 def _group_sections(
     sections: list[dict],
     target_pages: int,
@@ -383,14 +416,15 @@ def _group_sections(
     """Group sections into chunks of approximately target_pages pages.
 
     Returns list of {sections: [ids], pages: "start-end"} dicts.
+    Non-contiguous sections produce comma-separated page ranges
+    (e.g. "5-8,20-25") to avoid directing agents to irrelevant pages.
     """
     if not sections:
         return []
 
     groups: list[dict] = []
     current_ids: list[str] = []
-    current_start: int = 0
-    current_end: int = 0
+    current_secs: list[dict] = []
     current_pages: int = 0
 
     for s in sections:
@@ -398,23 +432,20 @@ def _group_sections(
             # Flush current group
             groups.append({
                 "sections": current_ids,
-                "pages": _pages_str(current_start, current_end),
+                "pages": _merge_page_ranges(current_secs),
             })
             current_ids = [s["id"]]
-            current_start = s["start_page"]
-            current_end = s["end_page"]
+            current_secs = [s]
             current_pages = s["pages"]
         else:
             current_ids.append(s["id"])
-            if current_pages == 0:
-                current_start = s["start_page"]
-            current_end = s["end_page"]
+            current_secs.append(s)
             current_pages += s["pages"]
 
     if current_ids:
         groups.append({
             "sections": current_ids,
-            "pages": _pages_str(current_start, current_end),
+            "pages": _merge_page_ranges(current_secs),
         })
 
     return groups
@@ -530,13 +561,18 @@ def _build_cross_section_pairs(sections: list[dict]) -> list[dict]:
                 "pages": _pages_str(s1["start_page"], s2["end_page"]),
                 "pair_type": "sequential",
             })
-        # Include last section if odd count
+        # Include last section if odd count — pair with first section
+        # for consistency check rather than duplicating the penultimate section
         if len(sections) % 2 == 1:
             last = sections[-1]
-            prev = sections[-2]
+            first = sections[0]
+            pages_list = [
+                _pages_str(first["start_page"], first["end_page"]),
+                _pages_str(last["start_page"], last["end_page"]),
+            ]
             pairs.append({
-                "sections": [prev["id"], last["id"]],
-                "pages": _pages_str(prev["start_page"], last["end_page"]),
+                "sections": [first["id"], last["id"]],
+                "pages": ",".join(pages_list),
                 "pair_type": "sequential",
             })
 
@@ -589,13 +625,21 @@ def main() -> int:
 
     # Detect headings
     print(f"Analyzing: {pdf_path}")
-    headings = detect_headings(str(pdf_path))
+    try:
+        headings = detect_headings(str(pdf_path))
+    except Exception as exc:
+        print(f"Error: cannot read PDF (corrupt or password-protected?): {exc}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
     print(f"Headings detected: {len(headings)}")
     for h in headings:
         print(f"  p.{h['page']}: [{h.get('level', '?')}] {h['text']}")
 
     # Open PDF once for content detection and section mapping
-    doc = pymupdf.open(str(pdf_path))
+    try:
+        doc = pymupdf.open(str(pdf_path))
+    except Exception as exc:
+        print(f"Error: cannot open PDF (corrupt or password-protected?): {exc}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
     try:
         total_pages = doc.page_count
 

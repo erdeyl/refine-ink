@@ -209,7 +209,6 @@ refine-ink/
     requirements.txt      # Python dependencies
   docs/                   # Detailed documentation
   reviews/                # Generated reviews (gitignored)
-  examples/               # Example inputs
   CLAUDE.md               # Project context for Claude Code
   README.md               # This file
 ```

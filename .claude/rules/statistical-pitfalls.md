@@ -44,7 +44,7 @@ These are common methodological errors in social science research. Flag them whe
 27. **Universal qualifier overclaiming**: Using "uniformly," "always," "in every country," "without exception" when the data contain missing values, non-significant estimates, or exceptions
 
 ### Systematic Review Pitfalls
-28. **Missing construct definition**: Failing to operationally define the central construct (e.g., "digital trade rules," "fintech regulation") before applying inclusion criteria, leaving the unit of analysis ambiguous across research questions
+28. **Missing construct definition**: Failing to operationally define the central construct (e.g., "digital trade rules," "fintech adoption") before applying inclusion criteria, leaving the unit of analysis ambiguous across research questions
 29. **Overly narrow search string**: Hardwiring mandatory AND terms (e.g., "development" AND "effect") that mechanically exclude literature relevant to some research questions (e.g., studies addressing evolution or structure but not effects)
 30. **Cross-database field inconsistency**: Searching "anywhere in article" in Google Scholar while restricting to TITLE-ABS-KEY in Scopus/Web of Science, producing non-comparable retrieval across databases
 31. **Method taxonomy errors**: Conflating estimation techniques (PPML, OLS, MLE) with model specifications (gravity, structural) or identification designs (DID, RDD, IV) when classifying the reviewed literature's methods

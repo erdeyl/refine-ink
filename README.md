@@ -73,33 +73,39 @@ refine-ink uses Claude Code's agent system to orchestrate 12 specialised review 
 PDF Input
    |
    v
-[Phase 1] PDF --> Markdown conversion (pymupdf4llm)
-   |         + conversion verification (word count, sections, tables, spot checks)
-   v
-[Phase 2] Chunking (dimension-specific sizes, 150--200 word overlap)
+[Phase 0]  Setup (locate PDF, create review directory)
    |
    v
-[Phase 3] Parallel Analysis (7 agents run simultaneously)
-   |         math-logic | notation | exposition | empirical
-   |         cross-section | econometrics | language
+[Phase 1]  PDF --> Markdown conversion (pymupdf4llm)
+   |          + conversion verification (word count, sections, tables, spot checks)
    v
-[Phase 4] Literature Search (WebSearch + Google Scholar via Chrome)
+[Phase 2]  Chunking (dimension-specific sizes, 150--200 word overlap)
    |
    v
-[Phase 5] Reference Verification (CrossRef -> OpenAlex -> Semantic Scholar cascade)
+[Phase 3]  Parallel Analysis (7 agents run simultaneously; 3x in triple-workflow mode)
+   |          math-logic | notation | exposition | empirical
+   |          cross-section | econometrics | language
+   v
+[Phase 4]  Literature Search (WebSearch + Google Scholar via Chrome)
    |
    v
-[Phase 6] Confidence Iteration (Opus re-analyses findings < 80% confidence)
+[Phase 5]  Reference Verification (CrossRef -> OpenAlex -> Semantic Scholar cascade)
    |
    v
-[Phase 7] Synthesis (aggregate findings into structured referee report)
+[Phase 6]  Cross-Workflow Synthesis (triple-workflow mode: merge 3 finding sets)
    |
    v
-[Phase 8] Precision Validation (Opus validates every finding against the paper)
-   |         Tier A: internal findings, 95% precision threshold
-   |         Tier B: external findings, 85--90% threshold
+[Phase 7]  Confidence Iteration (Opus re-analyses findings < 80% confidence)
+   |
    v
-[Phase 9] Output Generation (Markdown + HTML, English + Hungarian if applicable)
+[Phase 8]  Synthesis (aggregate findings into structured referee report)
+   |
+   v
+[Phase 9]  Precision Validation (Opus validates every finding against the paper)
+   |          Tier A: internal findings, 95% precision threshold
+   |          Tier B: external findings, 85--90% threshold
+   v
+[Phase 10] Output Generation (Markdown + HTML, English + Hungarian if applicable)
 ```
 
 ---
@@ -189,12 +195,14 @@ refine-ink/
     rules/                # Shared rules enforced across all agents
       no-hallucination.md
       review-standards.md
+      statistical-pitfalls.md
     skills/
       review/SKILL.md     # The /review skill orchestrator
     settings.json         # Permissions and tool configuration
   scripts/
     pdf_to_markdown.py    # PDF to Markdown conversion
     verify_conversion.py  # Conversion fidelity verification
+    pdf_section_map.py    # PDF heading → page-range mapping
     verify_references.py  # Reference validation via APIs
     md_to_html.py         # Markdown to styled HTML
     review_template.html  # HTML template for output

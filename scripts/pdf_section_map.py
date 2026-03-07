@@ -389,9 +389,9 @@ def _group_sections(
 
     groups: list[dict] = []
     current_ids: list[str] = []
-    current_start = 0
-    current_end = 0
-    current_pages = 0
+    current_start: int = 0
+    current_end: int = 0
+    current_pages: int = 0
 
     for s in sections:
         if current_pages > 0 and current_pages + s["pages"] > target_pages * 1.5:
@@ -406,7 +406,7 @@ def _group_sections(
             current_pages = s["pages"]
         else:
             current_ids.append(s["id"])
-            if not current_start:
+            if current_pages == 0:
                 current_start = s["start_page"]
             current_end = s["end_page"]
             current_pages += s["pages"]
